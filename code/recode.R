@@ -8,7 +8,8 @@ detach("packages:car")
 library(dplyr)
 library(lavaan)
 library(broom)
-
+#install.packages("xtable")
+library(xtable)
 
 
 df = read.dta13("~/electoral_contestation/data/data.dta",  
@@ -136,11 +137,27 @@ df =  df %>%
   mutate(trust_police    = recode(as.numeric(WSS54_6),   !!!agree_key)) %>%
   mutate(trust_science   = recode(as.numeric(WSS54_7),   !!!agree_key))  %>%
   mutate(efficacy_state  = recode(as.numeric(WSS33_split),  `1`=0, `2`=1 ))  %>%
-  mutate(efficacy_complicated  = recode(as.numeric(WSS33_1), !!!agree_key ))  %>%
-  mutate(efficacy_dontcare  = recode(as.numeric(WSS33_2), !!!agree_key ))  %>%
+  mutate(efficacy_complicated  = recode(as.numeric(WSS33_1), !!!disagree_key ))  %>%
+  mutate(efficacy_dontcare  = recode(as.numeric(WSS33_2), !!!disagree_key ))  %>%
   mutate(efficacy_buycott  = recode(as.numeric(WSS34_a),  `1`=1, `2`=0 ))  %>%
-  mutate(efficacy_purchase  = recode(as.numeric(WSS34_b),  `1`=1, `2`=0 ))  
-    
+  mutate(efficacy_purchase  = recode(as.numeric(WSS34_b),  `1`=1, `2`=0 ))  %>%
+  mutate(confidence_ballot  = recode(as.numeric(WSS37),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(court1  = recode(as.numeric(WSS49_1),  !!!agree_key))  %>%
+  mutate(court2  = recode(as.numeric(WSS49_2),  !!!disagree_key))  %>%
+  mutate(court3  = recode(as.numeric(WSS49_3),  !!!disagree_key))  %>%
+  mutate(court3  = recode(as.numeric(WSS49_3),  !!!disagree_key))  %>%
+  mutate(participation_meeting  = recode(as.numeric(WSS32_1), `1`=1, `2`=0 ))  %>%
+  mutate(participation_yard  = recode(as.numeric(WSS32_2), `1`=1, `2`=0 ))  %>%
+  mutate(participation_volunteer  = recode(as.numeric(WSS32_3), `1`=1, `2`=0 ))  %>%
+  mutate(participation_protest  = recode(as.numeric(WSS32_4), `1`=1, `2`=0 ))  %>%
+  mutate(participation_contact  = recode(as.numeric(WSS32_5), `1`=1, `2`=0 ))  %>%
+  mutate(participation_donate = recode(as.numeric(WSS32_6), `1`=1, `2`=0 ))  %>%
+  mutate(participation_socialmedia  = recode(as.numeric(WSS32_7), `1`=1, `2`=0 ))  %>%
+  mutate(participation_persuade  = recode(as.numeric(WSS32_8), `1`=1, `2`=0 ))  %>%
+  mutate(participation_none  = recode(as.numeric(WSS32_9), `1`=1, `2`=0 ))  
+  
+df$WSS32_1
+
 
 
 # 1 AZ
@@ -323,7 +340,14 @@ dat =
                     "trust_congress" , "trust_president", "trust_sc",
                     "trust_governor", "trust_stateleg", "trust_police",
                     "trust_science", "efficacy_state", "efficacy_complicated",
-                    "efficacy_dontcare",  "efficacy_buycott", "efficacy_purchase")) 
+                    "efficacy_dontcare",  "efficacy_buycott", "efficacy_purchase",
+                    "participation_persuade", "participation_socialmedia",
+                    "participation_yard", "participation_volunteer", "participation_protest", 
+                    "participation_contact", "participation_donate", "confidence_ballot"
+                    )) 
+
+
+  
 
 ### Dummy out each variable  ####
 
@@ -333,40 +357,9 @@ dat$post_call   = ifelse(df$treat == 3, 1, 0)
 dat = na.omit(dat)
 
 
-### Estimate IRT Model for DV ####
-model1  <- 'hard =~ l1*violent + l1*burn 
-            soft =~ recount + criticize + court 
-            trust1=~ trust_congress + trust_president + trust_sc 
-            trust2=~ trust_governor + trust_stateleg '
-            
-fit1 <- cfa(model1, ordered=c("violent", "burn", "court", "recount", "criticize",
-                              "trust_congress" , "trust_president", "trust_sc",
-                              "trust_governor", "trust_stateleg"), 
-            data=dat)
-fit1 %>% summary(fit.measures = "true") 
-
-efa_data = df %>% subset(select = c(ordered=c("violent", "burn", "court", 
-                                              "recount", "criticize",
-                                              "trust_congress" , "trust_president", 
-                                              "trust_sc", "trust_governor", 
-                                              "trust_stateleg", "trust_police")))
-
-psych::fa.parallel(efa_data, fm = 'minres', fa = 'fa')
-psych::fa(efa_data, nfactors=4) %>% loadings
-## It doesn't seem to fit well -- I don't know why
-#model1  <- 'hard =~ violent + burn + recount + criticize + court ' ## It doesn't seem to fit well -- I don't know why
-fit1 <- cfa(model1, ordered=c("violent", "burn", "court", "recount", "criticize"), data=dat)
-fit1 %>% summary(fit.measures = "true")  ### Kind of made up the constrained loadings. Still two items.
-dat  <- cbind(lavPredict(fit1), dat)
-psych::alpha(cbind(dat$violent, dat$burn, dat$court, dat$recount, dat$criticize), check.keys=TRUE)  ## 0.69
-psych::alpha(cbind(dat$violent, dat$burn), check.keys=TRUE) 
-cor(cbind(dat$violent, dat$burn)) ## These items go together well...
-
-#### Output IDS Specifications for Paper
-
 dat$RT = dat$republican * dat$post_call
 dat$IT = dat$independent * dat$post_call
 dat$TT = dat$trump_vote * dat$post_call
 
 
-save(dat, file = "raw_data.rda")
+#save(dat, file = "raw_data.rda")
