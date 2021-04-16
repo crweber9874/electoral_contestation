@@ -68,27 +68,74 @@ items = c("violent", "burn", "court", "recount", "criticize",
           "participation_persuade", "participation_socialmedia",
           "participation_yard", "participation_volunteer", "participation_protest", 
           "participation_contact", "participation_donate")
-model1a <-  "hard =~ violent + burn
+model1a <-  " hard =~ violent + burn
               soft =~ recount + criticize + court
               participation =~ participation_persuade + participation_socialmedia + 
               participation_yard + participation_volunteer + 
               participation_protest + participation_contact  +  participation_donate
-              trust =~ trust_congress + trust_president + trust_sc"         
-
-
-
-fit1 <- rbind(
-  cfa(model1a, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+              trust =~ trust_congress + trust_president + trust_sc
+              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase" 
+model1b <-  " contest =~ recount + criticize + court + violent + burn
+              participation =~ participation_persuade + participation_socialmedia + 
+              participation_yard + participation_volunteer + 
+              participation_protest + participation_contact  +  participation_donate
+              trust =~ trust_congress + trust_president + trust_sc
+              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase"  
+model1c <-  " participation =~ participation_persuade + participation_socialmedia + 
+              participation_yard + participation_volunteer + 
+              participation_protest + participation_contact  +  participation_donate +
+              recount + criticize + court + violent + burn
+              trust =~ trust_congress + trust_president + trust_sc
+              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase"  
+model1d <-  " participation =~ participation_persuade + participation_socialmedia + 
+              participation_yard + participation_volunteer + 
+              participation_protest + participation_contact  +  participation_donate
+              trust =~ trust_congress + trust_president + trust_sc + 
+              recount + criticize + court + violent + burn
+              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase"  
+model1e <-  " participation =~ participation_persuade + participation_socialmedia + 
+              participation_yard + participation_volunteer + 
+              participation_protest + participation_contact  +  participation_donate
+              trust =~ trust_congress + trust_president + trust_sc 
+              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase + 
+              recount + criticize + court + violent + burn"  
+fit <- rbind(
   cfa(model1a, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
   cfa(model1b, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
   cfa(model1c, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
-  cfa(model1, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
-) %>% data.frame()
-  
+  cfa(model1d, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1e, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli"))
+) %>% data.frame() 
+rownames(fit) <- c("Model 1", "Model 2", "Model 3", "Model4", "Model 5")
+names(fit) <- c("Chi-Squared", "RMSEA", "CFI", "TLI")
+xtable(fit, caption = "Model 1 is a five factor model, where `hard' and `soft' contestation items
+       load on separate factors, and trust, efficacy, and participation also load on independent factors.
+       Model 2 is a four factor model, where all contestation items load on one factor, and trust, efficacy, and participation 
+       load on indepenedent factors. Model 3 is a three factor model, where the contestation items to load on participation, and
+       separate factors are estimated for trust and efficacy. Model 4 is a three factor model, where the contestation items to load on trust, and
+       separate factors are estimated for participation and efficacy. Model 5 is a three factor model, where the contestation items 
+       load on efficacy, and separate factors are estimated for trust and participation. ")
 
+model  =  cfa(model1a, ordered=items, data=dat)
 semPlot::semPaths(model, what="paths", "est", style="lisrel", rotation=1,
                   thresholds=FALSE, residuals=FALSE, intercepts=FALSE, 
-                  sizeMan2=2, sizeMan=7, sizeLat2=7, sizeLat=6, 
-                  label.prop=0.5, label.cex=0.5, title=TRUE, node.width=1,
+                  sizeMan2=4, sizeMan=4, sizeLat2=4, sizeLat=4, 
+                  label.prop=0.7, label.cex=1, title=TRUE, node.width=1,
                   edge.label.cex = 0.5, 
-                  nCharNodes=0, label.font=3, label.scale=FALSE)
+                  nCharNodes=0, label.font=1, label.scale=TRUE,
+                  nodeLabels =  c("Protest", "Burn",
+                                  "Court", "Criticize",
+                                  "Recount", "Sign", "Volunteer",
+                                  "Protest", "Persuade", "Media", "Sign", "Donate",
+                                  "Congress", "President", "Scotus",
+                                  "Complicated", "Buycott", "Purchase",
+                                  "Hard", "Soft", "Participation", "Trust", "Efficacy"
+                                  ))
+
+                                  
+
+
+                    
+                    
+                    c("Internet\nAddiction", "Engagement", "Withdrawal",
+                                 "Conflict","Relapse","Tolerance","Mood mod","Salience"))
