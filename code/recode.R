@@ -156,7 +156,6 @@ df =  df %>%
   mutate(participation_persuade  = recode(as.numeric(WSS32_8), `1`=1, `2`=0 ))  %>%
   mutate(participation_none  = recode(as.numeric(WSS32_9), `1`=1, `2`=0 ))  
   
-df$WSS32_1
 
 
 
