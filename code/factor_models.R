@@ -1,6 +1,7 @@
 ### Electoral Contestation
 ### Factor models
 ### Excutes: One image (scree plot), one table (CFI, TLI), semPlot, and factor correlations.
+#
 library("ggplot2")
 library("semPlot")
 library("psych")
