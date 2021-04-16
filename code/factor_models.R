@@ -136,4 +136,5 @@ semPlot::semPaths(cfa_model, what="paths", "est", style="lisrel", rotation=1,
 corrs = lavInspect(cfa_model,"cor.lv") %>% as.matrix 
 rownames(corrs) <- colnames(corrs) <- c("Hard", "Soft", "Participation", "Trust", "Efficacy")
 xtable(corrs)
+### Factor models for remaining analysis###
   
