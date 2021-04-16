@@ -116,13 +116,9 @@ xtable(fit, caption = "Model 1 is a five factor model, where `hard' and `soft' c
        separate factors are estimated for participation and efficacy. Model 5 is a three factor model, where the contestation items 
        load on efficacy, and separate factors are estimated for trust and participation. ")
 
-<<<<<<< HEAD
 cfa_model  =  cfa(model1a, ordered=items, data=dat)
-semPlot::semPaths(cfa_model, what="paths", "est", style="lisrel", rotation=1,
-=======
 model  =  cfa(model1a, ordered=items, data=dat)
 semPlot::semPaths(model, what="paths", "est", style="lisrel", rotation=1,
->>>>>>> 2fa00a267c53d0b08cb1cb8f268e1df9aa261f85
                   thresholds=FALSE, residuals=FALSE, intercepts=FALSE, 
                   sizeMan2=4, sizeMan=4, sizeLat2=4, sizeLat=4, 
                   label.prop=0.7, label.cex=1, title=TRUE, node.width=1,
@@ -137,18 +133,7 @@ semPlot::semPaths(model, what="paths", "est", style="lisrel", rotation=1,
                                   "Hard", "Soft", "Participation", "Trust", "Efficacy"
                                   ))
 
-                                  
-<<<<<<< HEAD
 corrs = lavInspect(cfa_model,"cor.lv") %>% as.matrix 
 rownames(corrs) <- colnames(corrs) <- c("Hard", "Soft", "Participation", "Trust", "Efficacy")
 xtable(corrs)
 ### Factor models for remaining analysis###
-  
-=======
-
-
-                    
-                    
-                    c("Internet\nAddiction", "Engagement", "Withdrawal",
-                                 "Conflict","Relapse","Tolerance","Mood mod","Salience"))
->>>>>>> 2fa00a267c53d0b08cb1cb8f268e1df9aa261f85
