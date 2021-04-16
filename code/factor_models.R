@@ -4,13 +4,13 @@
 require(ggplot2)
 library("semPlot")
 library("psych")
-dat = df %>% subset(select = c(c("violent", "burn", "court", "recount", "criticize",
+dat = df %>% subset(select = c("violent", "burn", "court", "recount", "criticize",
                                               "trust_congress" , "trust_president", "trust_sc",
                                               "efficacy_complicated",
                                               "efficacy_buycott", "efficacy_purchase",
                                               "participation_persuade", "participation_socialmedia",
                                               "participation_yard", "participation_volunteer", "participation_protest", 
-                                              "participation_contact", "participation_donate"))) %>% na.omit()
+                                              "participation_contact", "participation_donate")) %>% na.omit()
 p.analysis<-psych::fa.parallel(dat, fm = 'minres', fa = 'fa', n.iter=100)
 
 factor_model<-fa(dat, fm = 'minres', nfactors = 5)
@@ -60,9 +60,31 @@ psych::alpha(with(dat, cbind(auth1, auth2, auth3, auth4)))
 psych::alpha(cbind(dat$violent, dat$burn, dat$court, dat$recount, dat$criticize), check.keys=TRUE)  ## 0.69
 psych::alpha(cbind(dat$violent, dat$burn), check.keys=TRUE) 
 cor(cbind(dat$violent, dat$burn)) ## These items go together well...
+# SEM Plot
+items = c("violent", "burn", "court", "recount", "criticize",
+          "trust_congress" , "trust_president", "trust_sc",
+          "efficacy_complicated",
+          "efficacy_buycott", "efficacy_purchase",
+          "participation_persuade", "participation_socialmedia",
+          "participation_yard", "participation_volunteer", "participation_protest", 
+          "participation_contact", "participation_donate")
+model1a <-  "hard =~ violent + burn
+              soft =~ recount + criticize + court
+              participation =~ participation_persuade + participation_socialmedia + 
+              participation_yard + participation_volunteer + 
+              participation_protest + participation_contact  +  participation_donate
+              trust =~ trust_congress + trust_president + trust_sc"         
 
 
-# Sem Plot
+
+fit1 <- rbind(
+  cfa(model1a, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1a, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1b, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1c, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+) %>% data.frame()
+  
 
 semPlot::semPaths(model, what="paths", "est", style="lisrel", rotation=1,
                   thresholds=FALSE, residuals=FALSE, intercepts=FALSE, 
