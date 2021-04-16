@@ -4,7 +4,7 @@
 rm(list = ls())
 setwd("~/electoral_contestation/")  ### Set your directory.
 #source("~/Dropbox/electoral_contestation/helper_functions.r")
-
+### These are the dependencies, if you run on your own machine.
 ### Uncomment and run #####
 # install.packages("rstan")
 # install.packages("ggplot2")
@@ -15,6 +15,12 @@ setwd("~/electoral_contestation/")  ### Set your directory.
 # install.packages("foreign")
 # install.packages("lavaan")
 # install.packages("readstata13")
+# install.packages("semPlot")
+# install.packages("psych")
+# install.packages("lavaan")
+library("ggplot2")
+library("semPlot")
+library("psych")
 library("rstan")
 library("ggplot2")
 library("MASS")
@@ -24,5 +30,7 @@ library("car")
 library("foreign")
 library("lavaan")
 library("readstata13")
+
+
 
 ### Now progress through files, according to README
