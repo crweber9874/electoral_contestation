@@ -1,36 +1,40 @@
 ### Electoral Contestation
 ### Factor models
 ### Excutes: One image (scree plot), one table (CFI, TLI), semPlot, and factor correlations.
-#
-#
+# Updated with confidence, concern questions: delete buycotting, etc.
+# just correlate, in footnote, with other relevant items.
 
 library("ggplot2")
 library("semPlot")
 library("psych")
-dat = df %>% subset(select = c("violent", "burn", "court", "recount", "criticize",
-                                              "trust_congress" , "trust_president", "trust_sc",
-                                              "efficacy_complicated",
-                                              "efficacy_buycott", "efficacy_purchase",
-                                              "participation_persuade", "participation_socialmedia",
-                                              "participation_yard", "participation_volunteer", "participation_protest", 
-                                              "participation_contact", "participation_donate")) %>% na.omit()
-p.analysis<-psych::fa.parallel(dat, fm = 'minres', fa = 'fa', n.iter=100)
+### Analyzed items (just to clean up the data)
+full_data_key = c(            "violent", "burn", "court", "recount", "criticize",
+                              "trust_congress" , "trust_president", "trust_sc",
+                              "concern_covid", "concern_lines", "concern_intimidate",
+                              "concern_accept", "concern_delay", "concern_illegal",
+                              "participation_persuade", "participation_socialmedia",
+                              "participation_yard", "participation_volunteer", "participation_protest", 
+                              "participation_contact", "participation_donate") 
 
+dat = df %>% subset(select = full_data_key) %>% na.omit()
+p.analysis<-psych::fa.parallel(dat, fm = 'minres', fa = 'fa', n.iter=100)
 factor_model<-fa(dat, fm = 'minres', nfactors = 5)
+### The factor solution is pretty good. There are five factors:
+### Hard contestation, soft contestation, trust, participation, and electoral concern
 str(factor_model$loadings, cutoff = 0.3) 
 class(factor_model$loadings)
 x = unclass(factor_model$loadings)
 x = ifelse(abs(x)>0.3, x, NA) 
-rownames(x) = c("Protest Election", "Burn Flag",
-                                       "Court", "Recount", "Criticize",
-                                       "Trust Congress", "Trust President", 
-                                       "Trust SCOTUS", "Politics is Complicated",
-                                       "Buycott", "Consumption", "Persuade",
-                                       "Social Media", "Yard Sign", "Volunteer",
-                                       "Protest", "Contact Official", "Donate")
+rownames(x) = c("violent", "burn", "court", "recount", "criticize",
+                                              "trust_congress" , "trust_president", "trust_sc",
+                                              "concern_covid", "concern_lines", "concern_intimidate",
+                                              "concern_accept", "concern_delay", "concern_illegal",
+                                               "Persuade","Social Media", "Yard Sign", "Volunteer",
+                                               "Protest", "Contact Official", "Donate")
 colnames(x) = paste("Factor", c(1:5), sep=" ")
-xtable(x)
-#### Figure XX #####
+xtable(x) ## This is about as clean as it gets
+
+#### Figure 1 #####
 plot.dat<-with(p.analysis, data.frame(sim=fa.sim, eigenvalues=fa.values,
                                       rep=fa.simr, factors=c(1:length(fa.values))))
 gplot<-data.frame(eigenvalues=c(plot.dat$sim,  plot.dat$eigenvalues, plot.dat$rep),
@@ -63,64 +67,98 @@ psych::alpha(with(dat, cbind(auth1, auth2, auth3, auth4)))
 psych::alpha(cbind(dat$violent, dat$burn, dat$court, dat$recount, dat$criticize), check.keys=TRUE)  ## 0.69
 psych::alpha(cbind(dat$violent, dat$burn), check.keys=TRUE) 
 cor(cbind(dat$violent, dat$burn)) ## These items go together well...
-# SEM Plot
-items = c("violent", "burn", "court", "recount", "criticize",
-          "trust_congress" , "trust_president", "trust_sc",
-          "efficacy_complicated",
-          "efficacy_buycott", "efficacy_purchase",
-          "participation_persuade", "participation_socialmedia",
-          "participation_yard", "participation_volunteer", "participation_protest", 
-          "participation_contact", "participation_donate")
+### Sem analysis 
+full_data_key = c(            "violent", "burn", "court", "recount", "criticize",
+                              "trust_congress" , "trust_president", "trust_sc",
+                              "concern_covid", "concern_lines", "concern_intimidate",
+                              "concern_accept", "concern_delay", "concern_illegal",
+                              "participation_persuade", "participation_socialmedia",
+                              "participation_yard", "participation_volunteer", "participation_protest", 
+                              "participation_contact", "participation_donate") 
+
+
 model1a <-  " hard =~ violent + burn
               soft =~ recount + criticize + court
               participation =~ participation_persuade + participation_socialmedia + 
               participation_yard + participation_volunteer + 
               participation_protest + participation_contact  +  participation_donate
               trust =~ trust_congress + trust_president + trust_sc
-              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase" 
-model1b <-  " contest =~ recount + criticize + court + violent + burn
+              concern =~ concern_covid + concern_lines + concern_intimidate + concern_accept + 
+              concern_delay + concern_illegal"
+model1b <-  " soft =~ recount + criticize + court + violent + burn
               participation =~ participation_persuade + participation_socialmedia + 
               participation_yard + participation_volunteer + 
               participation_protest + participation_contact  +  participation_donate
               trust =~ trust_congress + trust_president + trust_sc
-              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase"  
+              concern =~ concern_covid + concern_lines + concern_intimidate + concern_accept + 
+              concern_delay + concern_illegal"
+
 model1c <-  " participation =~ participation_persuade + participation_socialmedia + 
               participation_yard + participation_volunteer + 
-              participation_protest + participation_contact  +  participation_donate +
+              participation_protest + participation_contact  +  participation_donate + 
               recount + criticize + court + violent + burn
               trust =~ trust_congress + trust_president + trust_sc
-              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase"  
+              concern =~ concern_covid + concern_lines + concern_intimidate + concern_accept + 
+              concern_delay + concern_illegal"
 model1d <-  " participation =~ participation_persuade + participation_socialmedia + 
               participation_yard + participation_volunteer + 
-              participation_protest + participation_contact  +  participation_donate
-              trust =~ trust_congress + trust_president + trust_sc + 
-              recount + criticize + court + violent + burn
-              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase"  
+              participation_protest + participation_contact  +  participation_donate 
+              trust =~ trust_congress + trust_president + trust_sc +  recount + criticize + court + violent + burn
+              concern =~ concern_covid + concern_lines + concern_intimidate + concern_accept + 
+              concern_delay + concern_illegal"
+
 model1e <-  " participation =~ participation_persuade + participation_socialmedia + 
               participation_yard + participation_volunteer + 
-              participation_protest + participation_contact  +  participation_donate
-              trust =~ trust_congress + trust_president + trust_sc 
-              efficacy  =~ efficacy_complicated + efficacy_buycott + efficacy_purchase + 
-              recount + criticize + court + violent + burn"  
+              participation_protest + participation_contact  +  participation_donate 
+              trust =~ trust_congress + trust_president + trust_sc  +  recount + criticize + court + violent + burn
+              concern =~ concern_covid + concern_lines + concern_intimidate + concern_accept + 
+              concern_delay + concern_illegal"
 fit <- rbind(
-  cfa(model1a, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
-  cfa(model1b, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
-  cfa(model1c, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
-  cfa(model1d, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
-  cfa(model1e, ordered=items, data=dat) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli"))
-) %>% data.frame() 
+  cfa(model1a, ordered=full_data_key, data=df[,full_data_key]) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1b, ordered=full_data_key, data=df[,full_data_key]) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1c, ordered=full_data_key, data=df[,full_data_key]) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1d, ordered=full_data_key, data=df[,full_data_key]) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli")),
+  cfa(model1e, ordered=full_data_key, data=df[,full_data_key]) %>% fitMeasures(c("chisq", "rmsea", "cfi", "tli"))
+  ) %>% data.frame() 
 rownames(fit) <- c("Model 1", "Model 2", "Model 3", "Model4", "Model 5")
 names(fit) <- c("Chi-Squared", "RMSEA", "CFI", "TLI")
-xtable(fit, caption = "Model 1 is a five factor model, where `hard' and `soft' contestation items
-       load on separate factors, and trust, efficacy, and participation also load on independent factors.
-       Model 2 is a four factor model, where all contestation items load on one factor, and trust, efficacy, and participation 
-       load on indepenedent factors. Model 3 is a three factor model, where the contestation items to load on participation, and
-       separate factors are estimated for trust and efficacy. Model 4 is a three factor model, where the contestation items to load on trust, and
-       separate factors are estimated for participation and efficacy. Model 5 is a three factor model, where the contestation items 
-       load on efficacy, and separate factors are estimated for trust and participation. ")
+xtable(fit, caption = "\textbf{Model 1} is a five factor model, where `hard' and `soft' contestation items
+       load on separate factors, and trust, concern, and participation also load on independent factors.
+       \textbf{Model 2} is a four factor model, where all contestation items load on one factor, and trust, concern, and participation 
+       load on indepenedent factors. \textbf{Model 3} is a three factor model, where the contestation items to load on participation, and
+       separate factors are estimated for trust and concern.  \textbf{Model 4} is a three factor model, where the contestation items to load on concern, and
+       separate factors are estimated for participation and trust.  \textbf{Model 5} is a three factor model, where the contestation items 
+       load on trust, and separate factors are estimated for concern and participation.")
+### Divergent and Convergent Validity ####
+full_data_key = c(            "violent", "burn", "court", "recount", "criticize",
+                              "trust_congress" , "trust_president", "trust_sc",
+                              "concern_covid", "concern_lines", "concern_intimidate",
+                              "concern_accept", "concern_delay", "concern_illegal",
+                              "participation_persuade", "participation_socialmedia",
+                              "participation_yard", "participation_volunteer", "participation_protest", 
+                              "participation_contact", "participation_donate", "efficacy_complicated", 
+                              "efficacy_dontcare", "efficacy_buycott", "efficacy_purchase") 
 
+##### Estimate the DIF Model ####
+# Declare a three group model
+full_data_key = c(            "violent", "burn", "court", "recount", "criticize",
+                              "treat") 
+model1_noDIF <-  " hard =~ violent + burn
+                   soft =~ recount + criticize + court"
+
+cfa_model = cfa(model1a, ordered=full_data_key, data=df[,full_data_key],
+                group = "treat") 
+
+
+corrs = lavInspect(cfa_model,"cor.lv") %>% as.matrix %>% lower
+rownames(corrs) <- colnames(corrs) <-  c("Hard", "Soft", "Participation", "Trust", "Efficacy")
+xtable(corrs)
 cfa_model  =  cfa(model1a, ordered=items, data=dat)
 model  =  cfa(model1a, ordered=items, data=dat)
+
+
+
+
 semPlot::semPaths(model, what="paths", "est", style="lisrel", rotation=1,
                   thresholds=FALSE, residuals=FALSE, intercepts=FALSE, 
                   sizeMan2=4, sizeMan=4, sizeLat2=4, sizeLat=4, 

@@ -349,6 +349,7 @@ dat =
   
 
 ### Dummy out each variable  ####
+df$age    = df$age %>% zero.one
 
 
 dat$uncertainty = ifelse(df$treat == 2, 1, 0)

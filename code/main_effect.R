@@ -5,6 +5,9 @@ ITER = 2000
 CHAINS = 3
 summary(dat)
 library(dplyr)
+setwd("/home/rstudio/electoral_contestation/electoral_contestation/code/")
+source(file = "helper_functions.R")
+
 ## Anxiety, anger instead of surveillance
 
 ### This returns the right data, according to model specification#####
@@ -14,8 +17,8 @@ items = c("violent", "burn", "court", "recount", "criticize",
           "ideology", "anxiety", "anger", "authoritarianism", 
           "strength", "SM", "VIOLENT", "violent")
 baseline_data = df %>%  filter(treat ==1) %>% subset(select = items) %>% na.omit() %>% 
-  mutate(anxiety = recode(anxiety, `1`=0, `2`=0, `3`=0, `4`=1))
-  mutate(anger = recode(anger, `1`=0, `2`=0, `3`=0, `4`=1))
+  mutate(anxiety = recode(anxiety, `1`=0, `2`=0, `3`=0, `4`=1)) %>%
+  mutate(anger =   recode(anger, `1`=0, `2`=0, `3`=0, `4`=1))
 baseline_data$conservatism <- baseline_data$ideology %>% zero.one()
 ### Start with the treatment effects for the violent and media items ###
 ### There shouldn't be controls in these, so it's just an ordered logit regression of the item on the treatment
@@ -24,23 +27,91 @@ baseline_data$conservatism <- baseline_data$ideology %>% zero.one()
 MASS::polr(as.factor(violent) ~ VIOLENT, data = baseline_data) %>% summary ## Violent manipulation
 MASS::polr(as.factor(criticize) ~ SM, data = baseline_data) %>% summary ## Social Media manipulation
 ## For consistency, I'll just do this using the bayesian setup
-# Specify 
+# Specify the two exogenous treatment effects: 
 
 
 ### I estimate effects for each of the different items.
 ### The file reads in the stan code -- which is fine to ignore -- to generate predicted values
 ### If you run locally, you'll need to install the dependencies. Otherwise, just do it here.
-CONTROLS <- ''
-IV <- "SM"
-DV <- "criticize"
+controls <- CONTROLS <- c( "rwm", 
+                           "rr", 
+                           "age", 
+                           "female",
+                           "latino", 
+                           "black",
+                           "college", 
+                           "christian",
+                           "republican",
+                           "democrat",
+                           "conservatism",
+                           "anger",
+                           "anxiety",
+                           "authoritarianism",
+                           "strength")
+independent.variable <- "SM"
+dependent.variable <- "criticize"
 item_count = length(controls) + length(independent.variable)
-tempdat= data[, c(independent.variable, controls, dependent.variable)]
+tempdat= baseline_data[, c(independent.variable, controls, dependent.variable)]
 
 
-stan_data = stan_e1(independent.variable = IV,
-                    controls = CONTROLS,
-                    dependent.variable = DV, data = tempdat)
-fit1 = stan(model_code = model1, verbose =FALSE,
+stan_data = stan_e1(independent.variable = independent.variable,
+                    controls = controls,
+                    dependent.variable = dependent.variable, data = tempdat)
+ologit_baseline_stan <-
+  'data {
+  int<lower=0> N;
+  int<lower=0> P;
+  matrix[N, P] X;
+  vector[N] A; 
+  int K; 
+  int<lower=0,upper=6> Y[N];
+}
+transformed data {
+  vector[N] boot_probs = rep_vector(1.0/N, N);  
+}
+parameters {
+  vector[P + 1] alpha;
+  ordered[K - 1] c;
+}
+transformed parameters{
+  vector[P] alphaZ = head(alpha, P);
+  real alphaA = alpha[P + 1];
+}
+model{
+  alpha ~ normal(0, 2.5);
+  Y ~ ordered_logistic(X * alphaZ + A * alphaA, c);
+}
+generated quantities {
+    int row_i;
+    real ATE1 = 0;
+    real ATE2 = 0;
+    real ATE3 = 0;
+    vector[N] Yl_a1;
+    vector[N] Yl_a0;
+    vector[N] Ym_a1;
+    vector[N] Ym_a0;
+    vector[N] Yh_a1;
+    vector[N] Yh_a0;
+    vector[N] eta1;
+    vector[N] eta2;
+  for (n in 1:N) {
+    row_i = categorical_rng(boot_probs);
+    eta1[n] = X[row_i] * alphaZ;
+    eta2[n]=  X[row_i] * alphaZ + alphaA;
+    Yl_a1[n] = bernoulli_logit_rng(c[2] - eta2[n]);
+    Yl_a0[n] = bernoulli_logit_rng(c[2] - eta1[n]);
+    Ym_a1[n] = bernoulli_logit_rng(c[3] - eta2[n]) - bernoulli_logit_rng(c[2] - eta2[n]); 
+    Ym_a0[n] = bernoulli_logit_rng(c[3] - eta1[n]) - bernoulli_logit_rng(c[2] - eta1[n]); 
+    Yh_a1[n] = 1 - bernoulli_logit_rng(c[3] - eta2[n]); 
+    Yh_a0[n] = 1 - bernoulli_logit_rng(c[3] - eta1[n]);   
+    ATE1 = ATE1 + (Yl_a1[n] - Yl_a0[n])/N;
+    ATE2 = ATE2 + (Ym_a1[n] - Ym_a0[n])/N;
+    ATE3 = ATE3 + (Yh_a1[n] - Yh_a0[n])/N;
+    }
+}
+'
+
+fit1 = stan(model_code = ologit_baseline_stan, verbose =FALSE,
            data = stan_data, iter = ITER, chains = CHAINS)
 #### violent, burn, recount, court
 #############
@@ -72,7 +143,7 @@ tempdat= data[, c(independent.variable, controls, dependent.variable)]
 stan_data = stan_e1(independent.variable = IV,
                     controls = CONTROLS,
                     dependent.variable = DV, data = tempdat)
-fit2 = stan(model_code = model1, verbose =FALSE,
+fit2 = stan(model_code = "ologit_baseline.stan", verbose =FALSE,
            data = stan_data, iter = ITER, chains = CHAINS)
 
 #### Burn #####

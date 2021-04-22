@@ -1,4 +1,5 @@
-data {
+ologit_baseline_stan <-
+'data {
   int<lower=0> N;
   int<lower=0> P;
   matrix[N, P] X;
@@ -49,4 +50,4 @@ generated quantities {
     ATE3 = ATE3 + (Yh_a1[n] - Yh_a0[n])/N;
     }
 }
-
+'
