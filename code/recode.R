@@ -129,19 +129,27 @@ df =  df %>%
   mutate(recount         = recode(as.numeric(WSS40_4),  !!!agree_key)) %>%
   mutate(criticize       = recode(as.numeric(WSS40_5),  !!!agree_key)) %>%
   mutate(SM              = recode(as.numeric(WSS40_5_split),  `1`= 1, `2`=0)) %>%
-  mutate(trust_congress  = recode(as.numeric(WSS54_1),  !!!agree_key)) %>%
-  mutate(trust_president = recode(as.numeric(WSS54_2),  !!!agree_key)) %>%
-  mutate(trust_sc        = recode(as.numeric(WSS54_3),  !!!agree_key)) %>%
-  mutate(trust_governor  = recode(as.numeric(WSS54_4),  !!!agree_key)) %>%
-  mutate(trust_stateleg  = recode(as.numeric(WSS54_5),  !!!agree_key)) %>%
-  mutate(trust_police    = recode(as.numeric(WSS54_6),   !!!agree_key)) %>%
-  mutate(trust_science   = recode(as.numeric(WSS54_7),   !!!agree_key))  %>%
+  mutate(trust_congress  = recode(as.numeric(WSS54_1),  `1`=4, `2`=3, `3`=2, `4`=1)) %>%
+  mutate(trust_president = recode(as.numeric(WSS54_2),  `1`=4, `2`=3, `3`=2, `4`=1)) %>%
+  mutate(trust_sc        = recode(as.numeric(WSS54_3),  `1`=4, `2`=3, `3`=2, `4`=1)) %>%
+  mutate(trust_governor  = recode(as.numeric(WSS54_4),  `1`=4, `2`=3, `3`=2, `4`=1)) %>%
+  mutate(trust_stateleg  = recode(as.numeric(WSS54_5),  `1`=4, `2`=3, `3`=2, `4`=1)) %>%
+  mutate(trust_police    = recode(as.numeric(WSS54_6),   `1`=4, `2`=3, `3`=2, `4`=1)) %>%
+  mutate(trust_science   = recode(as.numeric(WSS54_7),   `1`=4, `2`=3, `3`=2, `4`=1))  %>%
   mutate(efficacy_state  = recode(as.numeric(WSS33_split),  `1`=0, `2`=1 ))  %>%
   mutate(efficacy_complicated  = recode(as.numeric(WSS33_1), !!!disagree_key ))  %>%
   mutate(efficacy_dontcare  = recode(as.numeric(WSS33_2), !!!disagree_key ))  %>%
   mutate(efficacy_buycott  = recode(as.numeric(WSS34_a),  `1`=1, `2`=0 ))  %>%
   mutate(efficacy_purchase  = recode(as.numeric(WSS34_b),  `1`=1, `2`=0 ))  %>%
   mutate(confidence_ballot  = recode(as.numeric(WSS37),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+### Election concerns
+  mutate(concern_usps       = recode(as.numeric(WSS41_1),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(concern_covid      = recode(as.numeric(WSS41_2),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(concern_lines      = recode(as.numeric(WSS41_3),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(concern_intimidate = recode(as.numeric(WSS41_4),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(concern_accept     = recode(as.numeric(WSS41_5),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(concern_delay      = recode(as.numeric(WSS41_6),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
+  mutate(concern_illegal    = recode(as.numeric(WSS41_7),  `1`=4, `2`=3, `3`=2, `4`=1 ))  %>%
   mutate(court1  = recode(as.numeric(WSS49_1),  !!!agree_key))  %>%
   mutate(court2  = recode(as.numeric(WSS49_2),  !!!disagree_key))  %>%
   mutate(court3  = recode(as.numeric(WSS49_3),  !!!disagree_key))  %>%

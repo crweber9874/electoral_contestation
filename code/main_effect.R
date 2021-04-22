@@ -7,10 +7,13 @@ summary(dat)
 library(dplyr)
 setwd("/home/rstudio/electoral_contestation/electoral_contestation/code/")
 source(file = "helper_functions.R")
+# Updates: Added two negative emotions: anxiety and anger.
+# ologit_baseline is a stan function found in the helper_functions. This should be a separate stan file.
+# But for some reason stan cannot read the file.
+### This is for data deletion #####
+### To do: Impute responses? #####
 
-## Anxiety, anger instead of surveillance
-
-### This returns the right data, according to model specification#####
+### Declare the items analyzed throughout.
 items = c("violent", "burn", "court", "recount", "criticize",
           "rwm",  "rr", "age", "female", "latino", "black",
           "college","christian","republican", "democrat",
