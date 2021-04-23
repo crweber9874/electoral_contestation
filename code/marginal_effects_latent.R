@@ -7,6 +7,34 @@ items = c("violent", "burn", "court", "recount", "criticize","post_call", "uncer
 dat1 = df[,items] %>% na.omit()
 items = c("violent", "burn", "court", "recount", "criticize")
 dat2 = df[,items] %>% na.omit()
+#### Winner and Loser effects #####
+# (1) The base input model, start by testing DIF
+full_data_key = c(            "violent", "burn", "court", "recount", "criticize",
+                              "VIOLENT", "SM")
+dat = df[,full_data_key]
+## construct the dif group code 
+
+model1a <-  "      hard =~ violent + burn
+                   soft =~ recount + criticize + court"
+
+cfa_model = cfa(model1a, ordered=full_data_key, data=df[,full_data_key],
+                group = "treat") 
+
+summary(cfa_model)
+
+
+
+
+
+
+
+model_code <- "hard =~ recount + criticize 
+                soft =~ court + violent + burn
+                hard ~ post_call + uncertainty
+                soft ~ post_call + uncertainty"
+model = sem(m1, ordered=items, data=dat1)
+
+
 ### I embed the lavaan code in a bootsrapping routine ###
 boot_marginals <- function(data, indices) {
   .df <- data[indices, ]

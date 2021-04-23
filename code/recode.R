@@ -12,7 +12,7 @@ library(broom)
 library(xtable)
 
 
-df = read.dta13("~/electoral_contestation/data/data.dta",  
+df = read.dta13("~/Dropbox/electoral_contestation/data.dta",  
                 missing.type=TRUE, generate.factors=TRUE)
 
 ### Recodes
@@ -339,7 +339,7 @@ df$strength = abs(df$pid7-4) %>% zero.one()
 dat = 
   df %>% 
   subset(select = c("treat", "authoritarianism" ,"rr", "age", "party3", "rwm", "pid7",
-                    "female", "latino", "black", "college", "ideology", 
+                    "female", "latino", "black", "college", "ideology", "white",
                     "christian", "VIOLENT", "SM", "violent", "recount", "criticize", 
                     "burn", "court", "state", "democrat", "republican", "independent", 
                     "trump_vote", "surveillance", "anxiety", "anger", "hope", "pride", 
@@ -350,7 +350,12 @@ dat =
                     "efficacy_dontcare",  "efficacy_buycott", "efficacy_purchase",
                     "participation_persuade", "participation_socialmedia",
                     "participation_yard", "participation_volunteer", "participation_protest", 
-                    "participation_contact", "participation_donate", "confidence_ballot"
+                    "participation_contact", "participation_donate", "confidence_ballot",
+                    "violent", "burn", "court", "recount", "criticize",
+                    "trust_congress" , "trust_president", "trust_sc",
+                    "concern_covid", "concern_lines", "concern_intimidate",
+                    "concern_accept", "concern_delay", "concern_illegal"
+                    
                     )) 
 
 
