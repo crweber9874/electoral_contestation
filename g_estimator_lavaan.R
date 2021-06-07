@@ -1,131 +1,474 @@
 ### Write G-estimation Function for factor model ####
-### Estimate the propensity scores from data ####
-# make sure everything is zero.one
-## Declare model parameters ###
+library(boot)
+
+### Here is where you set parameter input ##
+### Specify a model for the weight equations (this is used for the standardized inverse propensity weights)
+### Specify the lavaan model. 
+
+### 
+dat$trust_federal = with(dat, rowMeans(cbind(trust_sc, trust_president, trust_congress), na.rm= T)) %>% zero.one()
+dat$trust_state =   with(dat, rowMeans(cbind(trust_governor, trust_stateleg), na.rm= T)) %>% zero.one()
+
 weight_1 <- as.formula((treat==2) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
                       age + female + latino + black + college + ideology + christian + as.factor(state))
-weight_2 <- as.formula((treat==2) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
+weight_2 <- as.formula((treat==3) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
                       age + female + latino + black + college + ideology + christian + as.factor(state))
-lavaan_model =" hard =~ violent + burn
-              soft =~ recount + criticize + court
-              participation =~ participation_persuade + participation_socialmedia + 
-              participation_yard + participation_volunteer + 
-              participation_protest + participation_contact  +  participation_donate
-              concern =~ concern_covid + concern_lines + concern_intimidate + concern_accept + 
-              concern_delay + concern_illegal
-              hard ~ trump_vote + post1 + post2 + TT1 + TT2
-              soft ~ trump_vote + post1 + post2 + TT1 + TT2
-              participation ~ trump_vote + post1 + post2 + TT1 + TT2
-              concern ~ trump_vote + post1 + post2 + TT1 + TT2
+#trust1        =~ 1*trust_congress + 1*trust_sc
+#trust2        =~ trust_governor + trust_stateleg 
 
-"
-ordinal_data = c(            "violent", "burn", "court", "recount", "criticize",
+
+
+### Declare which data are to be treated as ordinal #
+
+
+ordinal_data = c(             "violent", "burn", "court", "recount", "criticize",
+                              "trust_congress" , "trust_president", "trust_sc",
+                              "trust_governor", "trust_stateleg",
                               "concern_covid", "concern_lines", "concern_intimidate",
                               "concern_accept", "concern_delay", "concern_illegal",
-                              "participation_persuade", "participation_socialmedia",
-                              "participation_yard", "participation_volunteer", "participation_protest", 
-                              "participation_contact", "participation_donate"
-) 
-### Primary bootstrapping model ###
-
-lavaan_sim = function(dat, indices, ordinal_data = ordinal_data,
-                      lavaan_model = lavaan_model, weight_1 = weight_1,
-                      weight_2 = weight_2){
-  .df <- dat[indices, ]
-  den1 <- glm(model, 
-              data = .df, family=binomial("logit")) %>% predict(type = "response")
-  den2 <- glm(model, 
-              data = .df, family=binomial("logit")) %>% predict(type = "response")
-  weights1 <- glm(I(treat==2) ~ 1, 
-                  data = .df, family=binomial("logit")) %>% 
-    augment(type.predict = "response") %>%
-    mutate(wts = ifelse(.df$treat !=2, ((1-.fitted)/(1-den1)), ((.fitted)/(den1))))
-  weights2 <- glm(I(treat==3) ~ 1, 
-                  data = .df, family=binomial("logit")) %>% 
-    augment(type.predict = "response") %>%
-    mutate(wts = ifelse(.df$treat !=3, ((1-.fitted)/(1-den2)), ((.fitted)/(den2))))
-  ### Append data with new weights ###
-  .df$weights1 = weights1$wts
-  .df$weights2 = weights2$wts
-  
-  .df$pre =   ifelse(.df$treat==1, 1, 0)
-  .df$post1 = ifelse(.df$treat==2, 1, 0)
-  .df$post2 = ifelse(.df$treat==3, 1, 0)
-  
-  .df$RT = .df$republican  * .df$post1
-  .df$IT = .df$independent * .df$post1
-  
-  .df$TT1 = .df$trump_vote  * .df$post1
-  .df$TT2 = .df$trump_vote  * .df$post2
+                              "participation_yard", "participation_volunteer", "participation_protest")
+                              
+#                               , 
+#                               "participation_contact", "participation_donate",
+#                               "confidence_ballot", "efficacy_dontcare", "efficacy_complicated"
+# ) 
+# ### Primary bootstrapping model ###
+# 
 
 
-  
-  model1 = cfa(lavaan_model, ordered=ordinal_data, 
-               data=.df, sampling.weights = "weights1") 
-  model2 = cfa(lavaan_model, ordered=ordinal_data, 
-               data=.df, sampling.weights = "weights2") 
-  
-  ## Regex out all the relevant stuff ###
-  
-  temp_dat = rbind(
-    data.frame(
-      trump_vote = coef(model1)[grep("trump_vote", names(coef(model1)))],
-      post1 = coef(model1)[grep("post1", names(coef(model1)))],
-      post2 = coef(model1)[grep("post2", names(coef(model1)))],
-      TT1 = coef(model1)[grep("TT1", names(coef(model1)))],
-      TT2 = coef(model1)[grep("TT2", names(coef(model1)))]
-    ),
-    data.frame(
-      trump_vote = coef(model2)[grep("trump_vote", names(coef(model2)))],
-      post1 = coef(model2)[grep("post1", names(coef(model2)))],
-      post2 = coef(model2)[grep("post2", names(coef(model2)))],
-      TT1 = coef(model2)[grep("TT1", names(coef(model2)))],
-      TT2 = coef(model2)[grep("TT2", names(coef(model2)))]
-    )
-  )
-  temp_dat$treatment = rep(c("Uncertainty", "Post_Call"), each = nrow(temp_dat)/2)
-  # Form Predictions
-  for (i in 1:4){
-    ba = as.numeric(temp_dat[i,1:5]) %*% c(0, 0, 0, 0, 0) ## Biden, Pre
-    ta = as.numeric(temp_dat[i,1:5]) %*% c(1, 0, 0, 0, 0) ## Trump, Pre
-    bb = as.numeric(temp_dat[i,1:5]) %*% c(0, 1, 0, 0, 0) ## Biden, Mid
-    tb = as.numeric(temp_dat[i,1:5]) %*% c(1, 1, 0, 1, 0) ## Trump, Mid
-    ### Form Treatment Effects
-    assign(paste0("trump_a", i), tb - ta)
-    assign(paste0("biden_a", i), bb - ba)
-  }
-  
-  for (i in 5:8){
-    ba = as.numeric(temp_dat[i,1:5]) %*% c(0, 0, 0, 0, 0) ## Biden, Pre
-    ta = as.numeric(temp_dat[i,1:5]) %*% c(1, 0, 0, 0, 0) ## Trump, Pre
-    bc = as.numeric(temp_dat[i,1:5]) %*% c(0, 0, 1, 0, 0) ## Biden, Post
-    tc = as.numeric(temp_dat[i,1:5]) %*% c(1, 0, 1, 0, 1) ## Trump, Post
-    ### Form Treatment Effects
-    assign(paste0("trump2_a", i), tc - ta)
-    assign(paste0("biden2_a", i), bc - ba)
-  }
-  return(c(biden_a1, biden_a2, biden_a3, biden_a4,
-           trump_a1, trump_a2, trump_a3, trump_a4, 
-           biden2_a5,  biden2_a6, biden2_a7, biden2_a8, 
-           trump2_a5, trump2_a6, trump2_a7, trump2_a8
-  ))
-}
-out_weights   = boot(dat, lavaan_sim, 25, ordinal_data = ordinal_data,
+### Lavaan sim does all the processing/estimation. 
+### Here is how to run the boostrapped simulations, this saves a boot object -- which I process for figures just below
+out_weights   = boot(dat, lavaan_sim, R = 100, ordinal_data = ordinal_data,
                      lavaan_model = lavaan_model, weight_1 = weight_1,
                      weight_2 = weight_2)
+### This generates the treatment effect plot data set
 plot_data_generator = function(output){
   plot_dat = data.frame(
     middle = apply(output$t, 2, quantile, 0.5),
     hi = apply(output$t, 2, quantile, 0.025),
     lo = apply(output$t, 2, quantile, 0.975),
-    type = rep(c("Hard", "Soft", "Participation", "Concern")),
+    type = rep(c("Hard", 
+                 "Soft", 
+                 "Participation", 
+                 "Concern", 
+                 "Trust(Federal)", 
+                 "Trust(State)", 
+                 "Ballot Confidence", 
+                 "Efficacy (Internal)", 
+                 "Efficacy(External)")),
     period = rep(c("Uncertainty", "Post_Call"), each = ncol(output$t)/2 ),
-    voter = rep(c("Biden", "Trump"), each = 4 ))
+    voter = rep(c("Biden", "Trump"), each = 9 ))
   return(plot_dat)
 }
 
-### 
+#subset(type == "Soft") %>% 
 
+out_weights %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1.0, 1.0)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+
+dev.copy(png,'section3_1.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+out_weights %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1.0, 1.0)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+
+dev.copy(png,'section3_2.jpg',
+         width = 750, height = 500)
+dev.off()
+###################################################################################################
+############ State Heterogeneity ##################################################################
+###################################################################################################
+
+### Heterogeneity across states ####
+
+weight_1 <- as.formula((treat==2) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
+                         age + female + latino + black + college + ideology + christian)
+weight_2 <- as.formula((treat==2) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
+                         age + female + latino + black + college + ideology + christian)
+
+out_weights_az   = boot(subset(dat, state ==1), lavaan_sim, 3, ordinal_data = ordinal_data,
+                        lavaan_model = lavaan_model, weight_1 = weight_1,
+                        weight_2 = weight_2)
+
+out_weights_az %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (Arizona)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+dev.copy(png,'section3_7.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+
+out_weights_latino %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (Arizona)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0)
+
+dev.copy(png,'section3_8.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+#### Colorado ###
+out_weights_co   = boot(subset(dat, state ==2), lavaan_sim, 100, ordinal_data = ordinal_data,
+                        lavaan_model = lavaan_model, weight_1 = weight_1,
+                        weight_2 = weight_2)
+
+out_weights_co %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (Colorado)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+dev.copy(png,'section3_9.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+out_weights_co %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (Colorado)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0)
+
+dev.copy(png,'section3_10.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+
+#### Colorado ###
+out_weights_nv   = boot(subset(dat, state ==3), lavaan_sim, 100, ordinal_data = ordinal_data,
+                        lavaan_model = lavaan_model, weight_1 = weight_1,
+                        weight_2 = weight_2)
+
+out_weights_nv %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (Nevada)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+dev.copy(png,'section3_11.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+
+out_weights_nv %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (Nevada)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0)
+
+dev.copy(png,'section3_12.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+
+#### New Mexico ###
+out_weights_nm   = boot(subset(dat, state ==4), lavaan_sim, 100, ordinal_data = ordinal_data,
+                        lavaan_model = lavaan_model, weight_1 = weight_1,
+                        weight_2 = weight_2)
+
+out_weights_nm %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (New Mexico)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+dev.copy(png,'section3_13.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+
+out_weights_nm %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (New Mexico)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0)
+
+dev.copy(png,'section3_14.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+#### Utah ###
+out_weights_ut   = boot(subset(dat, state ==5), lavaan_sim, 100, ordinal_data = ordinal_data,
+                        lavaan_model = lavaan_model, weight_1 = weight_1,
+                        weight_2 = weight_2)
+
+out_weights_ut %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (Utah)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+dev.copy(png,'section3_15.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+
+out_weights_ut %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (Utah)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1, 1)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0)
+
+
+dev.copy(png,'section3_16.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+###################################################################################################
+############ Robustness Checks   ##################################################################
+###################################################################################################
+### Examine racial groups separately #####
+weight_1 <- as.formula(I(treat==2) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
+                         age + female + college + ideology + christian + as.factor(state))
+weight_2 <- as.formula(I(treat==3) ~  authoritarianism + rr + independent + republican + trump_vote + rwm +
+                         age + female + college + ideology + christian + as.factor(state))
+### Here is how to run the boostrapped simulations, this saves a boot object -- which I process for figures just below
+out_weights_white   = boot(subset(dat, white ==1), lavaan_sim, 3, ordinal_data = ordinal_data,
+                     lavaan_model = lavaan_model, weight_1 = weight_1,
+                     weight_2 = weight_2)
+
+out_weights_white %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (White Respondents)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1.5, 1.5)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+
+dev.copy(png,'section3_3.jpg',
+         width = 750, height = 500)
+dev.off()
+
+out_weights_white %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (White Respondents)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1.5, 1.5)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+
+dev.copy(png,'section3_4.jpg',
+         width = 750, height = 500)
+dev.off()
+
+### Latinos ####
+
+### Examine racial groups separately #####
+weight_1 <- as.formula((treat==2) ~    authoritarianism + rr + independent + republican + trump_vote + rwm +
+                         age + female + college + ideology + christian + as.factor(state))
+weight_2 <- as.formula((treat==3) ~   authoritarianism + rr + independent + republican + trump_vote + rwm + 
+                         age + female + college + ideology + christian + as.factor(state))
+### Here is how to run the boostrapped simulations, this saves a boot object -- which I process for figures just below
+out_weights_latino   = boot(subset(dat, latino ==1), lavaan_sim, 3, ordinal_data = ordinal_data,
+                     lavaan_model = lavaan_model, weight_1 = weight_1,
+                     weight_2 = weight_2)
+
+out_weights_latino %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(type == "Soft" | type == "Hard") %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =1.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Winner and Loser Effects (Latino Respondents)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1.5, 1.5)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0) 
+
+
+dev.copy(png,'section3_5.jpg',
+         width = 750, height = 500,)
+dev.off()
+
+out_weights_latino %>% plot_data_generator() %>% 
+  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
+  subset(!(type == "Soft" | type == "Hard")) %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
+  facet_wrap (~type)+
+  geom_point(size =0.7) +
+  geom_errorbar( width = 0.01, alpha = 0.9) +
+  scale_colour_manual(name="Party", values=c("gray", "black"))+
+  scale_fill_grey() +
+  theme_bw() + 
+  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
+  ggtitle("Placebo Tests (Latino Respondents)") +
+  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Marginal Effect", limits = c(-1.5, 1.5)) + 
+  scale_x_discrete("") +
+  geom_hline(yintercept = 0)
+
+dev.copy(png,'section3_6.jpg',
+         width = 750, height = 500,)
+dev.off()
 
 
 
