@@ -14,7 +14,7 @@ This repository uses the 2020 Western Data. Begin by running
 
 4. baseline.R
 
-**This file runs the baseline models and produces a images***
+**This file runs the baseline models and produces a images**
 
 
 5. helper_functions.R 
@@ -24,6 +24,6 @@ This repository uses the 2020 Western Data. Begin by running
 6.  winner_loser_estimation.R
 
 
-**The primary analysis in the paper. This estimates the winner and loser models using the marginal structural model. It calls helper functions regularly.***
+**The primary analysis in the paper. This estimates the winner and loser models using the marginal structural model. It calls helper functions regularly.**
 
 
