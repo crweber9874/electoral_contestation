@@ -18,9 +18,12 @@ This repository uses the 2020 Western Data. Begin by running
 
 
 5. helper_functions.R 
+
 **This code includes all the functions I wrote and use throughout the analysis -- i.e., I piece together the marginal structural model in lavaan and then boostrap. You can ignore this, unless you're changing estimators.***
 
 6.  winner_loser_estimation.R
+
+
 **The primary analysis in the paper. This estimates the winner and loser models using the marginal structural model. It calls helper functions regularly.***
 
 
