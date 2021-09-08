@@ -3,9 +3,11 @@
 This repository uses the 2020 Western Data. Begin by running
 
 1. run_first.r
+
 **This file loads dependencies, configures drives, and so forth. The user should modify according to their computer settings.**
 
 2. recode.r
+
 **This file accomplishes all the recodes, transformations, etc. It spits out a file called *dat*. It also displays a frequency histogram, for descriptive purposes**
 
 3. Measurement. factor_models.R
