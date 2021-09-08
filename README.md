@@ -29,3 +29,8 @@ This repository uses the 2020 Western Data. Begin by running
 **The primary analysis in the paper. This estimates the winner and loser models using the marginal structural model. It calls helper functions regularly.**
 
 
+7.  simulation_parameters.R
+
+**The file with the details to simulate values, run lavaan models, etc. It's sort of a misc file that includes verbose code that I repeatedely call.**
+
+
