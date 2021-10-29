@@ -1,11 +1,9 @@
 # Recode data file.... (July 19, 2021)
 # Electoral contestation
-
-
 library(readstata13)
 library(MASS)
 library(ggplot2)
-#detach("packages:rlang")
+detach("packages:rlang")
 detach("packages:car")
 library(dplyr)
 library(lavaan)
@@ -48,8 +46,8 @@ df$region = region
 agree_key <- list(`1`= 5, `2`= 4,`3`= 3, `4`= 2, `5`= 1)
 disagree_key <- list(`1`= 1, `2`= 2,`3`= 3, `4`= 4, `5`= 5)
 
-detach("package:car")
-library(dplyr)
+#detach("package:car")
+#library(dplyr)
 df =  df %>%
   mutate(id = seq(1:nrow(df))) %>%
   mutate(state  =  state) %>%
@@ -66,7 +64,6 @@ df =  df %>%
   mutate(moral_ind2      = recode(as.numeric(WSS09_b_2), !!!agree_key)) %>%
   mutate(moral_ind3      = recode(as.numeric(WSS09_b_3), !!!agree_key)) %>%
   mutate(moral_ind4      = recode(as.numeric(WSS09_b_4), !!!agree_key)) %>%
-  mutate(moral_group     = recode(as.numeric(WSS09), `1`= "Religious Leader", `2`= "Science",`3`= "Teacher", `4`= "Public", `5`= "Family")) %>%
   mutate(sdo1            = recode(as.numeric(WSS10_1), !!!agree_key)) %>%
   mutate(sdo2r           = recode(as.numeric(WSS10_2), !!!disagree_key))  %>%
   mutate(sdo3            = recode(as.numeric(WSS10_3), !!!agree_key))  %>%

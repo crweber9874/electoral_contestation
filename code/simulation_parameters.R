@@ -1,8 +1,7 @@
 ### These are the lavaan models
 
-
 lavaan_model ="
-            ### Measurement Modeld
+            ### Measurement Model
               hardl          =~ violent + burn
               
               softl          =~ recount + criticize + court
@@ -41,7 +40,7 @@ lavaan_model_causal ="
               
               hardl          ~ trump_vote + post1 + post2 + TT1 + TT2 
               softl          ~ trump_vote + post1 + post2 + TT1 + TT2 
-              concern       ~ trump_vote + post1 + post2 + TT1 + TT2 
+              concern       ~  trump_vote + post1 + post2 + TT1 + TT2 
               trust_federal        ~ trump_vote + post1 + post2 + TT1 + TT2 
               trust_state       ~ trump_vote + post1 + post2 + TT1 + TT2 
               confidence_ballot ~ trump_vote + post1 + post2 + TT1 + TT2 

@@ -39,8 +39,8 @@ weights1 <- glm(I(treat==2) ~ 1,
 
 weights2 <- glm(I(treat==3) ~ 1, 
                 data = dat, family=binomial("logit")) %>% 
-  augment(type.predict = "response") %>%
-  mutate(wts = ifelse(dat$treat !=3, ((1-.fitted)/(1-den2)), ((.fitted)/(den2))))
+                augment(type.predict = "response") %>%
+                mutate(wts = ifelse(dat$treat !=3, ((1-.fitted)/(1-den2)), ((.fitted)/(den2))))
 
 ## Basically just weight the data according to the propensity of receiving the treatment. Then weight in the mdoel 1/pr(treatment).
 ## We're just weighting "up" those observations that (due to non-random assignment) are less likely to be observed in the data. 
@@ -68,8 +68,10 @@ cfa(lavaan_model, ordered=ordinal_data,
 ### These models on R number of datasets (I've been doing 100, but that can be changed)
 ### the function is called lavaan_sim
 
-out_weights   = boot(dat, lavaan_sim, R = 1000, ordinal_data = ordinal_data,
-                     lavaan_model = lavaan_model_causal)
+out_weights   = boot(dat, lavaan_sim_predict, R = 500, ordinal_data = ordinal_data,
+                     lavaan_model = lavaan_model_causal, parallel = "multicore", ncpus = 6)
+save(out_weights, file = "outweights.rda")
+#load("outweights.rda")
 
 # Input = data frame, lavaan_sim -- which takes input:
 # which variables are ordinal
@@ -78,65 +80,443 @@ out_weights   = boot(dat, lavaan_sim, R = 1000, ordinal_data = ordinal_data,
 
 # It does take a bit:
 
-## This produces a lot of ouput, which I clean in plot_data_generator (also in helper functions)
-out_weights %>% plot_data_generator() %>% 
-  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
-  subset(type == "Soft" | type == "Hard") %>% 
-  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
-  facet_wrap (~type)+
-  geom_point(size =1.7) +
-  geom_errorbar( width = 0.01, alpha = 0.9) +
-  scale_colour_manual(name="Party", values=c("gray", "black"))+
-  scale_fill_grey() +
-  theme_bw() + 
-  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
-  ggtitle("Electoral contestation and winner/loser effects") +
-  labs(caption="2020 Western States Study")+
-  scale_y_continuous("Marginal Effect", limits = c(-1.0, 1.0)) + 
-  scale_x_discrete("") +
-  geom_hline(yintercept = 0) 
+### For main winner and loser effects
+plot_data_generator_all = function(output){
+  plot_dat = data.frame(
+    middle = apply(output$t, 2, quantile, 0.5),
+    hi = apply(output$t, 2, quantile, 0.025),
+    lo = apply(output$t, 2, quantile, 0.975))
+  return(plot_dat)
+}
 
-dev.copy(png,'treatment_1_final.jpg',
+### This generates the plotting data frame######
+output = out_weights %>% plot_data_generator_all() 
+output$voter[grepl("trump", names(out_weights$t0))] = "Trump Voter"
+output$voter[grepl("biden", names(out_weights$t0))] = "Biden Voter"
+output$treat[grepl("_dif", names(out_weights$t0))] =  "Treatment Effect"
+output$treat = if_else(is.na(output$treat), "Point Estimate", output$treat)
+output$type = rep(c("High Cost", 
+                    "Low Cost", 
+                    "Concern", 
+                    "Trust(Federal)", 
+                    "Trust(State)", 
+                    "Ballot Confidence"), each = 6)
+output$period = c(rep(c("Pre", "Uncertainty", "Pre", "Uncertainty", "Uncertainty_Treat", "Uncertainty_Treat"), times = 6),
+                  rep(c("Pre", "Post", "Pre", "Post", "Post_Treat", "Post_Treat"), times = 6)) 
+
+
+library(patchwork)
+part1 =   
+    subset(output, type == "Low Cost" | type == "High Cost")  %>% 
+    subset(treat == "Point Estimate") %>%
+    mutate(period = factor(period, c("Post", "Uncertainty", "Pre"))) %>%
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=period, colour=voter)) + 
+  facet_wrap (~type, nrow = 2)+
+  geom_linerange(aes(x=period, ymax=middle, ymin=-2), size = 1.25, position = position_dodge(width = 0.2))+
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+  #scale_fill_grey() +
+  geom_point(aes(y=middle,  x=period, colour=voter), alpha=0.7, size = 2.1, position = position_dodge(width = 0.2))+
+  #theme_bw() + 
+  coord_flip() + 
+  ggtitle("Latent Variable Support") +
+#  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Point Estimate")  +
+  scale_x_discrete("")  +
+  theme(legend.position = "bottom",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        axis.text=element_text(size=8),
+        axis.text.x = element_text(angle=0),
+        plot.title = element_text(color="black", size=12)) 
+
+output$treatment[grepl("Uncertainty_", output$period)] =    "Uncertainty"
+output$treatment[grepl("Post_", output$period)] =    "Post-Election"
+
+part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>% 
+  subset(treat == "Treatment Effect") %>%
+  mutate(treatment = factor(treatment, c("Post-Election", "Uncertainty"))) %>%
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=treatment, colour=voter)) + 
+    facet_wrap(~type, nrow = 2) + 
+    geom_point(size = 2.3, position=position_dodge(width = 0.2), alpha = 0.3) +
+    geom_errorbar( width = 0.01, alpha = 0.9,  position=position_dodge(width = 0.2), size =1.2) +
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+    scale_fill_grey() +
+    coord_flip()+
+    theme(legend.position = "none",
+          panel.grid = element_blank(),
+          #axis.title = element_blank(),
+         # axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          panel.background = element_blank(),
+          axis.text.x = element_text(angle=0),
+          axis.text=element_text(size=8),
+           plot.title = element_text(color="black", size=12)) +
+    ggtitle("Winner/Loser Effects") +
+    scale_x_discrete("", position = "top")+
+    scale_y_continuous("Marginal Effect")+
+    geom_hline(yintercept = 0) 
+
+part1 + part2 + plot_annotation(
+  title = 'Electoral Contestation, Voting, and Winner-Loser Effects',
+  #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
+  caption = "2020 Western States Study",
+  theme = theme(plot.title = element_text(size = 14))
+)
+  
+dev.copy(png,'figure_latent.png',
          width = 750, height = 500,)
 dev.off()
 
-### Just some linear regressions:
-dat$soft <- rowMeans(cbind(dat$recount, dat$criticize, dat$court), na.rm = T)
-dat$hard <- rowMeans(cbind(dat$burn, dat$violent), na.rm = T)
 
-### Combine with sem_out
-robustness_linear1   = boot(dat, winner_loser, R = 1000, outcome = "hard" )
-robustness_linear2   = boot(dat, winner_loser, R = 1000, outcome = "soft" ) ### You can change the outcome, make sure it's 0-1
+### Generate the Placebo Estimates ####
 
-sem_out = out_weights %>% plot_data_generator() %>% subset(type == "Soft" | type == "Hard")
-sem_out$estimator = "MSM-SEM,IPW"
-msm1_out = robustness_linear1 %>% plot_data_linear() 
-msm1_out$estimator = "MSM-LM,IPW"
-msm1_out$type = "Hard"
-msm2_out = robustness_linear2 %>% plot_data_linear() 
-msm2_out$estimator = "MSM-LM,IPW"
-msm2_out$type = "Soft"
-combined  = rbind(sem_out, msm1_out, msm2_out)
+output = out_weights %>% plot_data_generator_all() 
+output$voter[grepl("trump", names(out_weights$t0))] = "Trump Voter"
+output$voter[grepl("biden", names(out_weights$t0))] = "Biden Voter"
+output$treat[grepl("_dif", names(out_weights$t0))] =  "Treatment Effect"
+output$treat = if_else(is.na(output$treat), "Point Estimate", output$treat)
+output$type = rep(c("High Cost", 
+                    "Low Cost", 
+                    "Concern", 
+                    "Trust(Federal)", 
+                    "Trust(State)", 
+                    "Ballot Confidence"), each = 6)
+output$period = c(rep(c("Pre", "Uncertainty", "Pre", "Uncertainty", "Trump_t1", "Biden_t1"), times = 6), 
+                  rep(c("Pre", "Post", "Pre", "Post", "Trump_t2", "Biden_t2"), times = 6))
 
-combined %>%
-  mutate(period = factor(period, c("Uncertainty", "Post_Call"))) %>%
-  ggplot(aes(y=middle, ymin=lo, ymax=hi, x=period, colour=voter)) + 
-  facet_wrap (~type + estimator)+
-  geom_point(size =1.7) +
-  geom_errorbar( width = 0.01, alpha = 0.9) +
-  scale_colour_manual(name="Party", values=c("gray", "black"))+
+
+part1 =   
+  subset(output, !(type == "High Cost" | type == "Low Cost") ) %>% 
+  subset(treat == "Point Estimate") %>%
+  mutate(period = factor(period, c("Post", "Uncertainty", "Pre"))) %>%
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=period, colour=voter)) + 
+  facet_wrap (~type, nrow = 4)+
+  geom_linerange(aes(x=period, ymax=middle, ymin=-2), size = 1.1, 
+                 position = position_dodge(width = 0.45))+
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+  #scale_fill_grey() +
+  geom_point(aes(y=middle,  x=period, colour=voter), alpha=0.7, size = 2.1, position = position_dodge(width = 0.45))+
+  #theme_bw() + 
+  coord_flip() + 
+  ggtitle("Latent Variable Support") +
+  #  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Point Estimate")  +
+  scale_x_discrete("")  +
+  theme(legend.position = "bottom",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        #axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(angle=0),
+        axis.text=element_text(size=8),
+        plot.title = element_text(color="black", size=12)) 
+
+output$treatment[grepl("_t1", output$period)] =    "Uncertainty"
+output$treatment[grepl("_t2", output$period)] =    "Post-Election"
+
+
+part2 =   subset(output, !(type == "Low Cost" | type == "High Cost") ) %>% 
+  subset(treat == "Treatment Effect", nrows =4) %>%
+  mutate(treatment = factor(treatment, c("Post-Election", "Uncertainty"))) %>%
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=treatment, colour=voter)) + 
+  facet_wrap(~type, nrow = 4) + 
+  geom_point(size = 2.3, position=position_dodge(width = 0.2), alpha = 0.3) +
+  geom_errorbar( width = 0.01, alpha = 0.9,  position=position_dodge(width = 0.2), size =1.2) +
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
   scale_fill_grey() +
-  theme_bw() + 
-  theme(legend.position="right", axis.ticks = element_blank(), axis.text.x = element_text(angle=0)) + 
-  ggtitle("Electoral contestation and winner/loser effects") +
-  labs(caption="2020 Western States Study")+
-  scale_y_continuous("Average Marginal Effect", limits = c(-1.0, 1.0)) + 
-  scale_x_discrete("") +
+  coord_flip()+
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        #axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        #axis.text=element_text(size=8),
+        plot.title = element_text(color="black", size=12)) +
+  ggtitle("Winner/Loser Effects") +
+  scale_x_discrete("", position = "bottom")+
+  scale_y_continuous("Marginal Effect")+
   geom_hline(yintercept = 0) 
 
-dev.copy(png,'treatment_combined_final.jpg',
+part1 + part2 + plot_annotation(
+  title = 'Electoral Confidence, Concern, and Trust',
+  #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
+  caption = "2020 Western States Study",
+  theme = theme(plot.title = element_text(size = 14))
+)
+
+
+dev.copy(png,'figure_latent_placebo.png',
          width = 750, height = 500,)
 dev.off()
+
+#### Generate point estimates 
+
+#### By variable ###
+
+
+individual.variables = list()
+vars = c("violent", "burn", "recount", "criticize", "court")
+
+#vars = c("recount")
+
+for(var in vars){
+  individual.variables[[var]]   = boot(dat, treat.effects.ordinal, R = 500, 
+                       dependent.variable = var, type = "point", 
+                       weighting = "FALSE", parallel = "multicore")
+}
+individual.variables_me = list()
+for(var in vars){
+  individual.variables_me[[var]]   = boot(dat, treat.effects.ordinal, R = 500, 
+                                       dependent.variable = var, type = "marginal", 
+                                       weighting = "FALSE", parallel = "multicore")
+}
+
+### Save Data ###
+save(individual.variables   , file = "individual_variables.rda")
+save(individual.variables_me, file = "individual_variables_me.rda")
+load("individual_variables.rda")
+load("individual_variables_me.rda")
+
+output = individual.variables[[1]] %>% plot_data_generator_all() 
+for(i in 2:5){
+  output = rbind(output, individual.variables[[i]] %>% plot_data_generator_all())
+}
+
+
+
+output$election =    rep(c("Pre-Election", "Uncertainty", "Post-Election"), each = 2)
+output$voter    =    rep(c("Trump Voter", "Biden Voter"))
+output$item    =    rep(c("Protest", "Flag Burn", "Recount", "Criticize", "Court"),  each = nrow(output)/5)
+
+
+part1a =  #subset(output, item == "Court") %>% o
+  #mutate(response = factor(response, c("Support", "Neutral", "Oppose"))) %>%
+  output %>%
+  mutate(election = factor(election, c("Post-Election", "Uncertainty", "Pre-Election"))) %>%
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=election, colour=voter)) + 
+  facet_wrap (~item, nrow = 5)+
+  geom_linerange(aes(x=election, ymax=middle, ymin = 0), size = 1.25, 
+                 position = position_dodge(width = 0.9)) + 
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+  geom_point(aes(x = election, y = middle), position = position_dodge(width = 0.9), size = 3, alpha =0.4) + 
+  #theme_bw() + 
+  coord_flip() + 
+  ggtitle("Probability of Support") +
+  #  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Point Estimate")  +
+  scale_x_discrete("")  +
+  theme(legend.position = "bottom",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(angle=0),
+        axis.text=element_text(size=8),
+        plot.title = element_text(color="black", size=12)) 
+
+
+
+
+output = individual.variables_me[[1]] %>% plot_data_generator_all() 
+for(i in 2:5){
+  output = rbind(output, individual.variables_me[[i]] %>% plot_data_generator_all())
+}
+
+output$election =    rep(c( "Uncertainty", "Post-Election"))
+output$voter    =    rep(c("Trump Voter", "Biden Voter"), each = 2)
+output$item    =    rep(c("Protest", "Flag Burn", "Recount", "Criticize", "Court"),  each = nrow(output)/5)
+
+
+part2a =   output %>%
+#subset(output, item == "Court")  %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=election, colour=voter)) + 
+  facet_wrap(~item, nrow = 5) + 
+  geom_point(size = 2.3, position=position_dodge(width = 0.9), alpha = 0.3) +
+  geom_errorbar( width = 0.01, alpha = 0.9,  
+                position=position_dodge(width = 0.9), size =1.2) +
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+  scale_fill_grey() +
+  coord_flip()+
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        # axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(angle=0),
+        axis.text=element_text(size=8),
+        plot.title = element_text(color="black", size=12)) +
+  ggtitle("Winner/Loser Effects") +
+  scale_x_discrete("", position = "top")+
+  scale_y_continuous("Marginal Effect Estimate")+
+  geom_hline(yintercept = 0) 
+  
+
+
+(part1a + part2a) +
+  plot_layout(guides='collect')+ plot_annotation(
+  title = "Winner/Loser Effects, by Item (no weights)",
+  #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
+  caption = "2020 Western States Study",
+  theme = theme(plot.title = element_text(size = 14),
+                legend.position = "bottom")
+)
+
+dev.copy(png,'individual_items-noIPW.png',
+         width = 750, height = 500)
+dev.off()
+
+
+
+
+vars = c("recount")
+for(var in vars){
+  individual.variables[[var]]   = boot(dat, treat.effects.ordinal, R = 500, 
+                       dependent.variable = var, type = "point", 
+                       weighting = "TRUE", parallel = "multicore")
+}
+individual.variables_me = list()
+for(var in vars){
+  individual.variables_me[[var]]   = boot(dat, treat.effects.ordinal, R = 500, 
+                                       dependent.variable = var, type = "marginal", 
+                                       weighting = "TRUE", parallel = "multicore")
+}
+
+output = individual.variables[[1]] %>% plot_data_generator_all() 
+output$election =    rep(c("Pre-Election", "Uncertainty", "Post-Election"), each = 2)
+output$voter    =    rep(c("Trump Voter", "Biden Voter"))
+
+
+part1a =  #subset(output, item == "Court") %>% o
+  #mutate(response = factor(response, c("Support", "Neutral", "Oppose"))) %>%
+  output %>%
+  mutate(election = factor(election, c("Post-Election", "Uncertainty", "Pre-Election"))) %>%
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=election, colour=voter)) + 
+  geom_linerange(aes(x=election, ymax=middle, ymin = 0), size = 1.25, 
+                 position = position_dodge(width = 0.6)) + 
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+  geom_point(aes(x = election, y = middle), position = position_dodge(width = 0.6), size = 3, alpha =0.4) + 
+  #theme_bw() + 
+  coord_flip() + 
+  ggtitle("Probability of Support") +
+  #  labs(caption="2020 Western States Study")+
+  scale_y_continuous("Point Estimate")  +
+  scale_x_discrete("")  +
+  theme(legend.position = "bottom",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(angle=0),
+        axis.text=element_text(size=8),
+        plot.title = element_text(color="black", size=12))   
+
+
+output = individual.variables_me[[1]] %>% plot_data_generator_all() 
+
+output$election =    rep(c( "Uncertainty", "Post-Election"))
+output$voter    =    rep(c("Trump Voter", "Biden Voter"), each = 2)
+
+
+part2a =   output %>%
+#subset(output, item == "Court")  %>% 
+  ggplot(aes(y=middle, ymin=lo, ymax=hi, 
+             x=election, colour=voter)) + 
+  geom_point(size = 2.3, position=position_dodge(width = 0.9), alpha = 0.3) +
+  geom_errorbar( width = 0.01, alpha = 0.9,  position=position_dodge(width = 0.9), size =1.2) +
+  scale_colour_manual(name="Voter", values=c("#0000ffe0", "#c20505"))+
+  scale_fill_grey() +
+  coord_flip()+
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        #axis.title = element_blank(),
+        # axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(angle=0),
+        axis.text=element_text(size=8),
+        plot.title = element_text(color="black", size=12)) +
+  ggtitle("Winner/Loser Effects") +
+  scale_x_discrete("", position = "top")+
+  scale_y_continuous("Marginal Effect Estimate")+
+  geom_hline(yintercept = 0) 
+  
+
+
+(part1a + part2a) +
+  plot_layout(guides='collect')+ plot_annotation(
+  title = "Support Ballot Recounts",
+  #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
+  caption = "2020 Western States Study",
+  theme = theme(plot.title = element_text(size = 14),
+                legend.position = "bottom")
+)
+
+dev.copy(png,'ballot.png',
+         width = 500, height = 200)
+dev.off()
+
+
+#### Robustness Checks #######
+## Balance
+install.packages("WeightIt")
+library("WeightIt")
+
+(w1 = weightit(weight_1, data = dat, estimand = "ATE", ps = "weights1" ))
+(w2 = weightit(weight_2, data = dat, estimand = "ATE", ps = "weights2" ))
+
+bal.tab(weight_1, data = dat, weights = "att.weights")
+
+bal.tab(dat[,c("authoritarianism", "rr", "trump_vote", "rwm", 
+               "age", "female", "latino", "black", "college", 
+               "ideology", "christian", "sdo", "state")] , treat = (dat$treat == 2), weights = dat$weights1)
+covs = dat[,c("authoritarianism", "rr", "trump_vote", "rwm", 
+               "age", "female", "latino", "black", "college", 
+               "ideology", "christian", "sdo", "state")]
+
+dat$treat1 = (dat$treat == 2)
+dat$treat2 = (dat$treat == 3)
+
+m.out1 <- matchit(f.build("treat1", covs), data = dat, 
+                 method = "nearest", replace = TRUE)
+m.out2 <- matchit(f.build("treat2", covs), data = dat, 
+                 method = "nearest", replace = TRUE)
+
+love.plot(m.out1, binary = "std",  line = TRUE, thresholds = c(m = .1),
+title = "Balance Statistics, Weighted and Unweighted")
+
+dev.copy(png,'balance1.png',
+         width = 750, height = 500)
+dev.off()
+
+love.plot(m.out2, binary = "std",  line = TRUE, thresholds = c(m = .1),
+title = "Balance Statistics, Weighted and Unweighted")
+
+
+dev.copy(png,'balance2.png',
+         width = 750, height = 500)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -169,7 +549,8 @@ dev.off()
 
 
 #### By variable ###
-treat.effects = function(data = dat, indices, dependent.variable = "violent"){
+treat.effects = function(data = dat, indices, dependent.variable = "violent", 
+                         point_estimate = TRUE){
   .df <- data[indices, ]
   model = polr(paste0("as.factor(", dependent.variable, ")~", "trump_vote + post1 + post2 + TT1 + TT2" ), data = .df) 
   tempdat1 = model.matrix(model)[,-1] %>% data.frame()
@@ -204,9 +585,16 @@ treat.effects = function(data = dat, indices, dependent.variable = "violent"){
          output[4] - output[2],
          output[5] - output[1],
          output[6] - output[2])
-  
-  return(me)
+  if(point_estimate == TRUE){
+    return(output)
+  }
+  if(point_estimate == FALSE){
+    return(me)
+  }
 }
+
+
+
 
 individual.variables = list()
 vars = c("violent", "burn", "recount", "criticize", "court")
