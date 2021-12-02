@@ -64,6 +64,70 @@ hard          ~ trump_vote + post1 + post2 + TT1 + TT2
 soft          ~ trump_vote + post1 + post2 + TT1 + TT2
 "
 
+
+lavaan_model_causal ="
+            ### Measurement Modeld
+              hardl          =~ violent + burn
+              
+              softl          =~ recount + criticize + court
+              
+              concern        =~ concern_covid + concern_lines + concern_intimidate + 
+                                concern_accept + concern_delay + concern_illegal
+
+              ### Structural Model  
+
+              
+              hardl          ~ trump_vote + post1 + post2 + TT1 + TT2 
+              softl          ~ trump_vote + post1 + post2 + TT1 + TT2 
+              concern       ~  trump_vote + post1 + post2 + TT1 + TT2 
+              trust_federal        ~ trump_vote + post1 + post2 + TT1 + TT2 
+              trust_state       ~ trump_vote + post1 + post2 + TT1 + TT2 
+              confidence_ballot ~ trump_vote + post1 + post2 + TT1 + TT2 
+"
+
+
+lavaan_model_causal_treat ="
+            ### Measurement Modeld
+              hardl          =~ violent + burn
+              
+              softl          =~ recount + criticize + court
+              
+              concern        =~ concern_covid + concern_lines + concern_intimidate + 
+                                concern_accept + concern_delay + concern_illegal
+
+              ### Structural Model  
+
+              
+              hardl          ~ trump_vote + post1 + post2 + TT1 + TT2 
+              softl          ~ trump_vote + post1 + post2 + TT1 + TT2 
+              concern       ~  trump_vote + post1 + post2 + TT1 + TT2 
+              trust_federal        ~ trump_vote + post1 + post2 + TT1 + TT2 
+              trust_state       ~ trump_vote + post1 + post2 + TT1 + TT2 
+              confidence_ballot ~ trump_vote + post1 + post2 + TT1 + TT2 
+              violent       ~   VIOLENT;
+              criticize     ~    SM; 
+
+"
+
+
+### This is useful for simpler models, eg, the state analysis.
+### However, even here, I had difficulties and ended up just reporting
+### OLS results
+
+
+lavaan_model_state2 ="
+### Measurement Modeld
+hard          =~ 1*violent + 1*burn
+
+soft          =~ recount + criticize + court
+
+### Structural Model  
+
+hard          ~ trump_vote + post1 + post2 + TT1 + TT2
+soft          ~ trump_vote + post1 + post2 + TT1 + TT2
+
+"
+
 ### These are for the different factor models in factor_models.R
 
 model1a <-  " hard =~ violent + burn

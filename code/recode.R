@@ -359,9 +359,6 @@ dat =
 
   
 
-### Dummy out each variable  ####
-df$age    = df$age %>% zero.one
-
 
 dat$uncertainty = ifelse(df$treat == 2, 1, 0)
 dat$post_call   = ifelse(df$treat == 3, 1, 0)
