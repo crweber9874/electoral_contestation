@@ -104,8 +104,8 @@ lavaan_model_causal_treat ="
               trust_federal        ~ trump_vote + post1 + post2 + TT1 + TT2 
               trust_state       ~ trump_vote + post1 + post2 + TT1 + TT2 
               confidence_ballot ~ trump_vote + post1 + post2 + TT1 + TT2 
-              violent       ~   VIOLENT;
-              criticize     ~    SM; 
+              ##violent       ~   VIOLENT;
+              ##criticize     ~    SM; 
 
 "
 

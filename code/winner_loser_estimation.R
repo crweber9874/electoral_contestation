@@ -1,3 +1,5 @@
+library(boot)
+
 ### Estimate a marginal structural model in lavaan ####
 
 
@@ -50,10 +52,136 @@ dat$post2 =  ifelse(dat$treat==3, 1, 0)
 dat$TT1 = dat$trump_vote  * dat$post1 ### Interactions for winner and loser effects.
 dat$TT2 = dat$trump_vote  * dat$post2
 
+####
+
+out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
+    data=dat)  
+
+vars = c("post1", "post1", "trump_vote", "TT1", "TT2")
+parms = c("~")
 
 
-cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
-    data=latino_dat)  %>% summary(fit.measures = TRUE)  ### This prints the output from the primary model used in the paper...
+### output = lavaan model output.
+### vars = list of variables to extract from the lavaan model, model dependent of ocurse
+### parms = parameters to extract; here regression paramegers.
+
+library(xtable)
+table_generator = function(out, vars, parms){
+  tmp = parameterEstimates(out)
+  tmp = subset(tmp, rhs = vars)
+  tmp = subset(tmp, op == parms)[,c("lhs", "rhs", "est", "se", "pvalue")]
+  tmp = xtable(data.frame(tmp))
+  return(tmp)
+}
+
+### For regression one,..
+### out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
+###          data=dat)  
+weight_1 <- as.formula((treat==2) ~  authoritarianism + rr + trump_vote + rwm +
+                         age + female + latino + black + college + ideology + 
+                         christian + sdo + as.factor(state)) ## Probability of treatment 1
+weight_2 <- as.formula((treat==3) ~  authoritarianism + rr + trump_vote + rwm +
+                         age + female + latino + black + college + ideology + 
+                         christian + sdo + as.factor(state)) ## Probability of treatment 1
+
+den1 <- glm(weight_1, 
+            data = dat, family=binomial("logit")) %>% predict(type = "response")
+
+den2 <- glm(weight_2, 
+            data = dat, family=binomial("logit")) %>% predict(type = "response")
+
+weights1 <- glm(I(treat==2) ~ 1, 
+                data = dat, family=binomial("logit")) %>% 
+  augment(type.predict = "response") %>%
+  mutate(wts = ifelse(dat$treat !=2, ((1-.fitted)/(1-den1)), ((.fitted)/(den1))))
+
+weights2 <- glm(I(treat==3) ~ 1, 
+                data = dat, family=binomial("logit")) %>% 
+  augment(type.predict = "response") %>%
+  mutate(wts = ifelse(dat$treat !=3, ((1-.fitted)/(1-den2)), ((.fitted)/(den2))))
+### Append data with new weights ###
+dat$weights1 = weights1$wts
+dat$weights2 = weights2$wts
+dat$pre_election  =    ifelse(dat$treat==1, 1, 0)
+dat$uncertainty   =    ifelse(dat$treat==2, 1, 0)
+dat$post_election  =   ifelse(dat$treat==3, 1, 0)
+
+out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
+          data=dat, weights = weights1)  
+table_generator(out, vars, parms)
+
+out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
+          data=dat, weights = weights2)  
+table_generator(out, vars, parms)
+
+out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
+          data=dat)  
+table_generator(out, vars, parms)
+
+
+#### Pre-election effects ####
+
+library(pscl)
+h1 <-  as.formula(as.factor(violent) ~  authoritarianism + rr + trump_vote + rwm +
+                    age + female + latino + black + college + ideology + christian + 
+                    sdo + as.factor(state) ) 
+
+h2 <-  as.formula(as.factor(burn) ~  authoritarianism + rr + trump_vote + rwm +
+                    age + female + latino + black + college + ideology + christian + 
+                    sdo + as.factor(state)) 
+
+s1 <-  as.formula(as.factor(criticize) ~  authoritarianism + rr + trump_vote + rwm +
+                    age + female + latino + black + college + ideology + christian + 
+                    sdo + as.factor(state) ) 
+
+s2 <-  as.formula(as.factor(court) ~  authoritarianism + rr + trump_vote + rwm +
+                    age + female + latino + black + college + ideology + christian + 
+                    sdo + as.factor(state)) 
+
+s3 <-  as.formula(as.factor(recount) ~  authoritarianism + rr + trump_vote + rwm +
+                    age + female + latino + black + college + ideology + christian + 
+                    sdo + as.factor(state)) 
+
+m1<- polr(h1, data = subset(dat, treat ==1)) %>% summary 
+m2<- polr(h2, data = subset(dat, treat ==1)) %>% summary 
+m3<- polr(s1, data = subset(dat, treat ==1)) %>% summary 
+m4<- polr(s2, data = subset(dat, treat ==1)) %>% summary 
+m5<- polr(s3, data = subset(dat, treat ==1)) %>% summary 
+xtable(coef(m1))
+xtable(coef(m2))
+xtable(coef(m3))
+xtable(coef(m4))
+xtable(coef(m5))
+
+
+
+
+
+
+
+
+vars = c("post1", "post1", "trump_vote", "TT1", "TT2")
+parms = c("~")
+
+tmp = tmp[tmp$rhs = vars,]
+["violent"]
+
+
+[ grep(c("~1"), names(coef(out)))]
+
+
+intercept = coef(out) [grep(c("~1"), names(coef(out)))]
+uncertainty = coef(out) [grep(c("~post2"), names(coef(out)))]
+post_call = coef(out) [grep(c("~post1"), names(coef(out)))]
+trump_vote = coef(out) [grep(c("~trump_vote"), names(coef(out)))]
+int1 = coef(out) [grep(c("~TT1"), names(coef(out)))]
+int2 = coef(out) [grep(c("~TT2"), names(coef(out)))]
+
+%>% summary(fit.measures = TRUE)  ### This prints the output from the primary model used in the paper...
+
+
+t(beta.sim[, grep("[a-zA-Z]", names(beta.sim))]))
+
 
 ### Lavaan sim does all the processing/estimation. 
 ### Here is how to run the boostrapped simulations, this saves a boot object -- 
