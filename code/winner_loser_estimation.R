@@ -1,7 +1,12 @@
-library(boot)
+
+##########################
+rm(list = ls())
+setwd("")
+source("code/run_first.r")
+load("raw_data.rda")
+##########################
 
 ### Estimate a marginal structural model in lavaan ####
-
 
 ###dat$trust_federal = with(dat, rowMeans(cbind(trust_sc, trust_president, trust_congress), na.rm= T)) %>% zero.one()
 dat$trust_federal = with(dat, rowMeans(cbind(trust_sc, trust_president, trust_congress), na.rm= T)) %>% zero.one()
@@ -106,12 +111,10 @@ dat$pre_election  =    ifelse(dat$treat==1, 1, 0)
 dat$uncertainty   =    ifelse(dat$treat==2, 1, 0)
 dat$post_election  =   ifelse(dat$treat==3, 1, 0)
 
-out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
-          data=dat, weights = weights1)  
+out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, data=dat, sampling.weights = "weights1")  
 table_generator(out, vars, parms)
 
-out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
-          data=dat, weights = weights2)  
+out = cfa(lavaan_model_causal_treat, ordered=ordinal_data,  data=dat, sampling.weights = "weights2")  
 table_generator(out, vars, parms)
 
 out = cfa(lavaan_model_causal_treat, ordered=ordinal_data, 
@@ -154,20 +157,10 @@ xtable(coef(m4))
 xtable(coef(m5))
 
 
-
-
-
-
-
-
 vars = c("post1", "post1", "trump_vote", "TT1", "TT2")
 parms = c("~")
 
-tmp = tmp[tmp$rhs = vars,]
-["violent"]
 
-
-[ grep(c("~1"), names(coef(out)))]
 
 
 intercept = coef(out) [grep(c("~1"), names(coef(out)))]
@@ -177,11 +170,6 @@ trump_vote = coef(out) [grep(c("~trump_vote"), names(coef(out)))]
 int1 = coef(out) [grep(c("~TT1"), names(coef(out)))]
 int2 = coef(out) [grep(c("~TT2"), names(coef(out)))]
 
-%>% summary(fit.measures = TRUE)  ### This prints the output from the primary model used in the paper...
-
-
-t(beta.sim[, grep("[a-zA-Z]", names(beta.sim))]))
-
 
 ### Lavaan sim does all the processing/estimation. 
 ### Here is how to run the boostrapped simulations, this saves a boot object -- 
@@ -189,9 +177,9 @@ t(beta.sim[, grep("[a-zA-Z]", names(beta.sim))]))
 ### We can just boostrap these effects. So sample from the observed ata. 
 ### I wrote a function to do this in helper functions. Basically, I'm just estimating
 ### These models on R number of datasets (I've been doing 100, but that can be changed)
-### the function is called lavaan_sim
+### the function is called 
 
-out_weights   = boot(dat, lavaan_sim_predict, R = 500, ordinal_data = ordinal_data,
+out_weights   = boot(dat, predict, R = 500, ordinal_data = ordinal_data,
                      lavaan_model = lavaan_model_causal, parallel = "multicore", ncpus = 6)
 save(out_weights, file = "outweights.rda")
 
@@ -275,26 +263,23 @@ part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>%
   scale_y_continuous("Marginal Effect")+
   geom_hline(yintercept = 0) 
 
-part1 + part2 + plot_annotation(
+jpeg(filename = "Figures/figure_latent.jpeg", quality = 100)
+ part1 + part2 + plot_annotation(
   title = 'Electoral Contestation, Voting, and Winner-Loser Effects',
   #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
 
-dev.copy(png,'figure_latent.png',
-         width = 750, height = 500,)
-dev.off()
-
-
 #load("outweights.rda")
 
-# Input = data frame, lavaan_sim -- which takes input:
+# Input = data frame,  -- which takes input:
 # which variables are ordinal
 # the lavaan model formula
 # the propensity score weights.
 
 # It does take a bit:
+
 
 ### For main winner and loser effects
 plot_data_generator_all = function(output){
@@ -321,7 +306,6 @@ output$period = c(rep(c("Pre", "Uncertainty", "Pre", "Uncertainty", "Uncertainty
                   rep(c("Pre", "Post-Call", "Pre", "Post-Call", "Post_Treat", "Post_Treat"), times = 6)) 
 
 
-library(patchwork)
 part1 =   
     subset(output, type == "Low Cost" | type == "High Cost")  %>% 
     subset(treat == "Point Estimate") %>%
@@ -376,16 +360,14 @@ part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>%
     scale_y_continuous("Marginal Effect")+
     geom_hline(yintercept = 0) 
 
+png(filename = "Figures/figure_latent.png",
+      res = 100, width = 600, height = 600)
 part1 + part2 + plot_annotation(
   title = 'Electoral Contestation, Voting, and Winner-Loser Effects',
   #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
-  
-dev.copy(png,'figure_latent.png',
-         width = 750, height = 500,)
-dev.off()
 
 
 ### Generate the Placebo Estimates ####
@@ -460,22 +442,18 @@ part2 =   subset(output, !(type == "Low Cost" | type == "High Cost") ) %>%
   scale_y_continuous("Marginal Effect")+
   geom_hline(yintercept = 0) 
 
+png(filename = "Figures/figure_latent_placebo.png",
+      res = 100, width = 600, height = 600)
 part1 + part2 + plot_annotation(
   title = 'Electoral Confidence, Concern, and Trust',
   #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
-
-
-dev.copy(png,'figure_latent_placebo.png',
-         width = 750, height = 500,)
 dev.off()
 
 #### Generate point estimates 
-
 #### By variable ###
-
 
 individual.variables = list()
 vars = c("violent", "burn", "recount", "criticize", "court")
@@ -505,11 +483,10 @@ for(i in 2:5){
   output = rbind(output, individual.variables[[i]] %>% plot_data_generator_all())
 }
 
-
-
 output$election =    rep(c("Pre", "Uncertainty", "Post-Call"), each = 2)
 output$voter    =    rep(c("Trump Voter", "Biden Voter"))
-output$item    =    rep(c("Protest", "Flag Burn", "Recount", "Criticize", "Court"),  each = nrow(output)/5)
+output$item     =    rep(c("Protest", "Flag Burn", "Recount", "Criticize", "Court"), 
+                         each = nrow(output)/5)
 
 
 part1a =  #subset(output, item == "Court") %>% o
@@ -537,8 +514,6 @@ part1a =  #subset(output, item == "Court") %>% o
         axis.text.x = element_text(angle=0),
         axis.text=element_text(size=8),
         plot.title = element_text(color="black", size=12)) 
-
-
 
 
 output = individual.variables_me[[1]] %>% plot_data_generator_all() 
@@ -578,6 +553,9 @@ part2a =   output %>%
   
 
 
+png(filename = "Figures/individual_items.png",
+res = 100, width = 600, height = 600)
+
 (part1a + part2a) +
   plot_layout(guides='collect')+ plot_annotation(
   title = "Winner/Loser Effects, by Item",
@@ -585,11 +563,7 @@ part2a =   output %>%
   theme = theme(plot.title = element_text(size = 14),
                 legend.position = "bottom")
 )
-
-dev.copy(png,'individual_items.png',
-         width = 750, height = 500)
 dev.off()
-
 
 
 
@@ -667,6 +641,8 @@ part2a =   output %>%
   geom_hline(yintercept = 0) 
   
 
+png(filename = "Figures/electoral_contestation/ballot.png",
+res = 100, width = 600, height = 600)
 
 (part1a + part2a) +
   plot_layout(guides='collect')+ plot_annotation(
@@ -676,16 +652,11 @@ part2a =   output %>%
   theme = theme(plot.title = element_text(size = 14),
                 legend.position = "bottom")
 )
-
-dev.copy(png,'ballot.png',
-         width = 500, height = 200)
 dev.off()
 
 
 #### Robustness Checks #######
 ## Balance
-install.packages("WeightIt")
-library("WeightIt")
 
 (w1 = weightit(weight_1, data = dat, estimand = "ATE", ps = "weights1" ))
 (w2 = weightit(weight_2, data = dat, estimand = "ATE", ps = "weights2" ))
@@ -707,19 +678,18 @@ m.out1 <- matchit(f.build("treat1", covs), data = dat,
 m.out2 <- matchit(f.build("treat2", covs), data = dat, 
                  method = "nearest", replace = TRUE)
 
+png(filename = "/Users/Chris/Dropbox/github_repos/electoral_contestation/electoral_contestation/balance1.png",
+res = 100, width = 600, height = 600)
+
 love.plot(m.out1, binary = "std",  line = TRUE, thresholds = c(m = .1),
 title = "Balance Statistics, Weighted and Unweighted")
-
-dev.copy(png,'balance1.png',
-         width = 750, height = 500)
 dev.off()
+
+png(filename = "/Users/Chris/Dropbox/github_repos/electoral_contestation/electoral_contestation/balance2.png",
+res = 100, width = 600, height = 600)
 
 love.plot(m.out2, binary = "std",  line = TRUE, thresholds = c(m = .1),
 title = "Balance Statistics, Weighted and Unweighted")
-
-
-dev.copy(png,'balance2.png',
-         width = 750, height = 500)
 dev.off()
 
 

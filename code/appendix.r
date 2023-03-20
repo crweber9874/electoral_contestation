@@ -1,6 +1,5 @@
 ### Appendix ####
 #### October 27, 2021. 
-library(boot)
 library(dplyr)
 ### Declare some variables (again)
 dat$trust_federal = with(dat, rowMeans(cbind(trust_sc, trust_president, trust_congress), na.rm= T)) %>% zero.one()
@@ -12,6 +11,9 @@ dat$post2 =  ifelse(dat$treat==3, 1, 0)
 dat$TT1 = dat$trump_vote  * dat$post1 ### Interactions for winner and loser effects.
 dat$TT2 = dat$trump_vote  * dat$post2
 ### Robustness, Experimetnal Effects 
+
+
+
 
 out_weights   = boot(dat, lavaan_sim_predict, R = 500, ordinal_data = ordinal_data,
                      lavaan_model = lavaan_model_causal_treat, parallel = "multicore", ncpus = 6)
@@ -97,14 +99,14 @@ part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>%
   scale_y_continuous("Marginal Effect")+
   geom_hline(yintercept = 0) 
 
+png(filename = "Figures/figure_latent_robust_exp.png",
+      res = 100, width = 600, height = 600)
 part1 + part2 + plot_annotation(
   title = 'Electoral Contestation, Voting, and Winner-Loser Effects (Robustness, Experimental Effects), ',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
 
-dev.copy(png,'figure_latent_robust_exp.png',
-         width = 750, height = 500,)
 dev.off()
 
 
@@ -245,19 +247,23 @@ part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>%
     scale_y_continuous("Marginal Effect")+
     geom_hline(yintercept = 0) 
 
+
+png(filename = "Figures/figure_latent_noweights.png",
+      res = 100, width = 600, height = 600)
 part1 + part2 + plot_annotation(
   title = 'Electoral Contestation, Voting, and Winner-Loser Effects (No Weights)',
   #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
-  
-dev.copy(png,'figure_latent_noweights.png',
-         width = 750, height = 500,)
 dev.off()
 
+
 ### Reestimate marginal models with linear regression and IPW weights.
-variables = c("hard", "soft")
+dat$high = rowMeans(cbind(dat$violent, dat$burn)) %>% zero.one()
+dat$low = rowMeans(cbind(dat$court, dat$criticize, dat$recount, dat$criticize)) %>% zero.one()
+
+variables = c("high", "low")
 robustness_checks_weight = list()
 robustness_checks_noweight = list()
 ### Create a massive list....weights and non 
@@ -340,6 +346,9 @@ part2 =   output2 %>%
   scale_y_continuous("Marginal Effect Estimate")+
   geom_hline(yintercept = 0) 
 
+png(filename = "Figures/robustness_linear.png",
+      res = 100, width = 600, height = 600)
+
 (part1 + part2) +
   plot_layout(guides='collect')+ plot_annotation(
     title = "Robustness, Linear Regression",
@@ -349,11 +358,7 @@ part2 =   output2 %>%
                   legend.position = "bottom")
   )
 
-dev.copy(png,'robustness_linear.png',
-         width = 750, height = 500)
 dev.off()
-
-
 ####################################
 # Estimate effects by race#####
 # white ==1
@@ -493,16 +498,14 @@ part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>%
   scale_y_continuous("Marginal Effect")+
   geom_hline(yintercept = 0) 
 
+png(filename = "Figures/figure_latino.png",
+      res = 100, width = 600, height = 600)
 part1 + part2 + plot_annotation(
   title = 'Electoral Contestation, Voting, and Winner-Loser Effects (Latino Respondents)',
   #subtitle = 'These 3 plots will reveal yet-untold secrets about our beloved data-set',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
-
-
-dev.copy(png,'figure_latino.png',
-         width = 750, height = 500,)
 dev.off()
 ########################################################################################
 white_dat = subset(dat, white == 1)
@@ -641,14 +644,13 @@ part2 =   subset(output, type == "High Cost" | type == "Low Cost")  %>%
   scale_y_continuous("Marginal Effect")+
   geom_hline(yintercept = 0) 
 
+png(filename = "Figures/figure_white.png",
+      res = 100, width = 600, height = 600)
 part1 + part2 + plot_annotation(
   title = 'Electoral Contestation, Voting, and Winner-Loser Effects\nNon-Hispanic White Respondents',
   caption = "2020 Western States Study",
   theme = theme(plot.title = element_text(size = 14))
 )
-
-dev.copy(png,'figure_white.png',
-         width = 750, height = 500,)
 dev.off()
 
 ### By State  ###
@@ -792,18 +794,20 @@ return(part1 + part2 + plot_annotation(
   )
 )
 }
+
+png(filename = "Figures/Az.png",
+      res = 100, width = 600, height = 600)
 state_figure(con, label = "Arizona, Nevada")
-dev.copy(png,'figure_con.png',
-         width = 750, height = 500,)
 dev.off()
 
+
+png(filename = "Figures/figure_un.png",
+      res = 100, width = 600, height = 600)
 state_figure(output = un, label = "Utah, New Mexico, Colorado")
-dev.copy(png,'figure_un.png',
-         width = 750, height = 500,)
 dev.off()
 
-state_figure(output = co, label = "Colorado")
-dev.copy(png,'figure_co.png',
-         width = 750, height = 500,)
-dev.off()
+# png(filename = "Figures/figure_co.png",
+#       res = 100, width = 600, height = 600)
+# state_figure(output = co, label = "Colorado")
+# dev.off()
 
